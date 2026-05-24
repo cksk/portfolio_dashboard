@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FolioAI - Pure Equity Cloud Portfolio</title>
+    
+    <!-- Tailwind CSS for premium utility styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React and Babel CDNs to run JSX directly in the browser -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        /* Custom scrollbar aesthetics */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 99px;
+        }
+        /* Glassmorphism utility */
+        .glass {
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+    <!-- Root target for React mounting -->
+    <div id="root"></div>
+
+    <!-- Firebase SDK ES Modules CDN -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Expose modules to the window context so Babel-transpiled React can consume them
+        window.FirebaseSDK = { initializeApp, getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot };
+    </script>
+
+    <!-- Main React App Script (Transpiled on the fly by Babel) -->
+    <script type="text/babel">
+        // Grab exposed Firebase SDK tools
+        const getFirebaseTools = () => {
+            return window.FirebaseSDK || {
+                initializeApp: () => {}, getAuth: () => {}, signInWithPopup: () => {}, GoogleAuthProvider: () => {}, signOut: () => {}, onAuthStateChanged: () => {}, getFirestore: () => {}, doc: () => {}, setDoc: () => {}, onSnapshot: () => {}
+            };
+        };
+
+        const { useState, useEffect, useMemo } = React;
+
+        // --- PASTE YOUR FIREBASE CONFIG HERE ---
+        const firebaseConfig = {
+ 	    apiKey: "AIzaSyBRgONBX1nXM0fPjYhQsqfYBjq41NyU-fc",
+            authDomain: "calvin-dashboard.firebaseapp.com",
+            projectId: "calvin-dashboard",
+            storageBucket: "calvin-dashboard.firebasestorage.app",
+            messagingSenderId: "921825941721",
+            appId: "1:921825941721:web:53815a10796cb4843e06c8"
+	};
+
+
+        // Initialize Firebase
+        const tools = getFirebaseTools();
+        let app, auth, db, googleProvider;
+        const appId = 'portfolio-dashboard-main';
+
+        try {
+            app = tools.initializeApp(firebaseConfig);
+            auth = tools.getAuth(app);
+            db = tools.getFirestore(app);
+            googleProvider = new tools.GoogleAuthProvider();
+        } catch (e) {
+            console.error("Firebase SDK init failed. Running in static demo mode.");
+        }
+
+        // --- SYSTEM PROMPT FOR CO-PILOT ---
+        const SYSTEM_PROMPT = `You are "FolioAI", an elite financial portfolio assistant and risk advisor. 
+        You are analyzing the user's pure equity portfolio consisting of: VTI, SCHG, SCHF, SMH, 3110.HK, and 3010.HK.
+        Your goal is to provide highly analytical, insightful, and strategic feedback. Keep answers concise and structured.`;
+
+        // --- INITIAL DATA ---
+        const INITIAL_HOLDINGS = [
+            { id: '1', symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', category: 'Stocks', shares: 77, avgBuyPrice: 245.50, currentPrice: 278.60, color: '#3b82f6', targetWeight: 45, estYield: 1.38, lastDividendDate: '2026-03-24', dividendPerShare: 0.95 },
+            { id: '2', symbol: 'SCHG', name: 'Schwab U.S. Large-Cap Growth ETF', category: 'Stocks', shares: 58, avgBuyPrice: 91.20, currentPrice: 112.45, color: '#60a5fa', targetWeight: 25, estYield: 0.43, lastDividendDate: '2026-03-20', dividendPerShare: 0.12 },
+            { id: '3', symbol: 'SCHF', name: 'Schwab International Equity ETF', category: 'Stocks', shares: 34, avgBuyPrice: 35.40, currentPrice: 41.12, color: '#10b981', targetWeight: 15, estYield: 2.85, lastDividendDate: '2026-06-18', dividendPerShare: 0.29 },
+            { id: '4', symbol: 'SMH', name: 'VanEck Semiconductor ETF', category: 'Stocks', shares: 17, avgBuyPrice: 205.10, currentPrice: 254.80, color: '#f59e0b', targetWeight: 10, estYield: 0.50, lastDividendDate: '2026-03-15', dividendPerShare: 0.31 },
+            { id: '5', symbol: '3110.HK', name: 'Global X China Biotech ETF', category: 'Stocks', shares: 200, avgBuyPrice: 5.15, currentPrice: 6.12, color: '#8b5cf6', targetWeight: 2.5, estYield: 0.00, lastDividendDate: 'N/A', dividendPerShare: 0.00 },
+            { id: '6', symbol: '3010.HK', name: 'Amundi MSCI China UCITS ETF', category: 'Stocks', shares: 300, avgBuyPrice: 3.80, currentPrice: 4.45, color: '#eab308', targetWeight: 2.5, estYield: 1.10, lastDividendDate: '2026-05-10', dividendPerShare: 0.05 }
+        ];
+
+        const INITIAL_TRANSACTIONS = [
+            { id: 'tx-1', type: 'BUY', symbol: 'VTI', category: 'Stocks', amount: 77, price: 245.50, date: '2026-01-10' },
+            { id: 'tx-2', type: 'BUY', symbol: 'SCHG', category: 'Stocks', amount: 58, price: 91.20, date: '2026-02-15' },
+            { id: 'tx-3', type: 'BUY', symbol: 'SCHF', category: 'Stocks', amount: 34, price: 35.40, date: '2026-03-05' },
+            { id: 'tx-4', type: 'BUY', symbol: 'SMH', category: 'Stocks', amount: 17, price: 205.10, date: '2026-03-22' },
+            { id: 'tx-5', type: 'BUY', symbol: '3110.HK', category: 'Stocks', amount: 200, price: 5.15, date: '2026-04-02' },
+            { id: 'tx-6', type: 'BUY', symbol: '3010.HK', category: 'Stocks', amount: 300, price: 3.80, date: '2026-04-18' }
+        ];
+
+        function App() {
+            const [holdings, setHoldings] = useState(INITIAL_HOLDINGS);
+            const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [timeframe, setTimeframe] = useState('1M'); 
+            const [isSimulatorRunning, setIsSimulatorRunning] = useState(false);
+            const [selectedAssetForModal, setSelectedAssetForModal] = useState(null);
+            
+            const [claimedDividendsCash, setClaimedDividendsCash] = useState(0);
+            const [unclaimedDividends, setUnclaimedDividends] = useState([
+                { id: 'div-1', symbol: '3010.HK', amount: 15.00, perShare: 0.05, date: '2026-05-10', processed: false },
+                { id: 'div-2', symbol: 'VTI', amount: 73.15, perShare: 0.95, date: '2026-06-24', processed: false, simulatedUpcoming: true }
+            ]);
+
+            // Form state
+            const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+            const [isBuySellModalOpen, setIsBuySellModalOpen] = useState(false);
+            const [newSymbol, setNewSymbol] = useState('');
+            const [newName, setNewName] = useState('');
+            const [newCategory, setNewCategory] = useState('Stocks');
+            const [newShares, setNewShares] = useState('');
+            const [newPrice, setNewPrice] = useState('');
+            const [tradeType, setTradeType] = useState('BUY');
+            const [tradeAmount, setTradeAmount] = useState('');
+            const [tradePrice, setTradePrice] = useState('');
+
+            // AI Copilot
+            const [copilotInput, setCopilotInput] = useState('');
+            const [messages, setMessages] = useState([
+                { sender: 'assistant', text: "Hello! I am your FolioAI Co-Pilot. I am running natively in your browser! Ask me to evaluate ETF overlaps or help you plan target acquisitions." }
+            ]);
+            const [isAiLoading, setIsAiLoading] = useState(false);
+
+            // Theme toggle
+            const [isDarkMode, setIsDarkMode] = useState(true);
+
+            // Cloud Sync persistence
+            const [user, setUser] = useState(null);
+            const [cloudStatus, setCloudStatus] = useState('connecting'); // connecting | synced | saving | unauthenticated
+
+            // Set up Firebase Auth state listener
+            useEffect(() => {
+                if (!auth) {
+                    setCloudStatus('unauthenticated');
+                    return;
+                }
+                const unsubscribe = tools.onAuthStateChanged(auth, (usr) => {
+                    setUser(usr);
+                    if (!usr) {
+                        setCloudStatus('unauthenticated');
+                    }
+                });
+                return () => unsubscribe();
+            }, []);
+
+            // Set up Firebase data stream
+            useEffect(() => {
+                if (!user || !db) return;
+
+                setCloudStatus('connecting');
+                const docRef = tools.doc(db, 'artifacts', appId, 'users', user.uid, 'portfolioState', 'data');
+                
+                const unsubscribe = tools.onSnapshot(docRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const d = docSnap.data();
+                        if (d.holdings) setHoldings(d.holdings);
+                        if (d.transactions) setTransactions(d.transactions);
+                        if (typeof d.claimedDividendsCash !== 'undefined') setClaimedDividendsCash(d.claimedDividendsCash);
+                        if (d.unclaimedDividends) setUnclaimedDividends(d.unclaimedDividends);
+                        setCloudStatus('synced');
+                    } else {
+                        // First-time setup seed
+                        const initialSeed = {
+                            holdings: INITIAL_HOLDINGS,
+                            transactions: INITIAL_TRANSACTIONS,
+                            claimedDividendsCash: 0,
+                            unclaimedDividends: unclaimedDividends
+                        };
+                        tools.setDoc(docRef, initialSeed)
+                            .then(() => setCloudStatus('synced'))
+                            .catch(() => setCloudStatus('unauthenticated'));
+                    }
+                }, () => setCloudStatus('unauthenticated'));
+
+                return () => unsubscribe();
+            }, [user]);
+
+            // Save function helper
+            const saveToCloud = async (newHoldings, newTransactions, newDividendsCash, newUnclaimed) => {
+                if (!user || !db || cloudStatus === 'unauthenticated') return;
+                setCloudStatus('saving');
+                
+                try {
+                    const docRef = tools.doc(db, 'artifacts', appId, 'users', user.uid, 'portfolioState', 'data');
+                    await tools.setDoc(docRef, {
+                        holdings: newHoldings,
+                        transactions: newTransactions,
+                        claimedDividendsCash: newDividendsCash,
+                        unclaimedDividends: newUnclaimed
+                    });
+                    setCloudStatus('synced');
+                } catch (err) {
+                    console.error("Cloud save failed:", err);
+                    setCloudStatus('synced'); // Recover state locally
+                }
+            };
+
+            // Login & Logout flows
+            const handleSignIn = async () => {
+                if (!auth) return;
+                setCloudStatus('connecting');
+                try {
+                    await tools.signInWithPopup(auth, googleProvider);
+                } catch (error) {
+                    console.error("Login failed:", error);
+                    setCloudStatus('unauthenticated');
+                }
+            };
+
+            const handleSignOut = async () => {
+                if (!auth) return;
+                setCloudStatus('connecting');
+                try {
+                    await tools.signOut(auth);
+                    setHoldings(INITIAL_HOLDINGS);
+                    setTransactions(INITIAL_TRANSACTIONS);
+                    setClaimedDividendsCash(0);
+                } catch (error) {
+                    console.error("Sign out failed:", error);
+                }
+            };
+
+            // Totals derivation
+            const totals = useMemo(() => {
+                let totalValue = 0;
+                let totalCost = 0;
+                let categoryMap = {};
+
+                holdings.forEach(h => {
+                    const value = h.shares * h.currentPrice;
+                    const cost = h.shares * h.avgBuyPrice;
+                    totalValue += value;
+                    totalCost += cost;
+
+                    if (!categoryMap[h.category]) {
+                        categoryMap[h.category] = { name: h.category, value: 0, color: h.color };
+                    }
+                    categoryMap[h.category].value += value;
+                });
+
+                const totalGain = totalValue - totalCost;
+                const gainPercentage = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
+
+                const categories = Object.values(categoryMap).map(c => ({
+                    ...c,
+                    percentage: totalValue > 0 ? (c.value / totalValue) * 100 : 0
+                }));
+
+                return { totalValue, totalCost, totalGain, gainPercentage, categories };
+            }, [holdings]);
+
+            const totalTargetWeight = useMemo(() => {
+                return holdings.reduce((acc, h) => acc + h.targetWeight, 0);
+            }, [holdings]);
+
+            // Market simulation
+            useEffect(() => {
+                let interval;
+                if (isSimulatorRunning) {
+                    interval = setInterval(() => {
+                        setHoldings(prevHoldings => {
+                            const next = prevHoldings.map(h => {
+                                const volatility = h.symbol.includes('.HK') ? 0.012 : h.symbol === 'SMH' ? 0.018 : 0.005;
+                                const changePercent = (Math.random() - 0.49) * volatility;
+                                const updatedPrice = Math.max(0.01, h.currentPrice * (1 + changePercent));
+                                return { ...h, currentPrice: parseFloat(updatedPrice.toFixed(2)) };
+                            });
+                            saveToCloud(next, transactions, claimedDividendsCash, unclaimedDividends);
+                            return next;
+                        });
+                    }, 3000);
+                }
+                return () => clearInterval(interval);
+            }, [isSimulatorRunning, transactions, claimedDividendsCash, unclaimedDividends]);
+
+            const handleTargetWeightChange = (id, newWeight) => {
+                const val = Math.max(0, Math.min(100, parseFloat(newWeight) || 0));
+                const next = holdings.map(h => h.id === id ? { ...h, targetWeight: val } : h);
+                setHoldings(next);
+                saveToCloud(next, transactions, claimedDividendsCash, unclaimedDividends);
+            };
+
+            const claimDividend = (divId) => {
+                const div = unclaimedDividends.find(d => d.id === divId);
+                if (!div || div.processed) return;
+
+                const nextDividendsCash = claimedDividendsCash + div.amount;
+                setClaimedDividendsCash(nextDividendsCash);
+
+                const nextUnclaimed = unclaimedDividends.map(d => d.id === divId ? { ...d, processed: true } : d);
+                setUnclaimedDividends(nextUnclaimed);
+                
+                const newTx = {
+                    id: `div-tx-${Date.now()}`,
+                    type: 'DIVIDEND',
+                    symbol: div.symbol,
+                    category: 'Dividend Cash',
+                    amount: div.amount,
+                    price: 1.00,
+                    date: new Date().toISOString().split('T')[0]
+                };
+                const nextTx = [newTx, ...transactions];
+                setTransactions(nextTx);
+
+                saveToCloud(holdings, nextTx, nextDividendsCash, nextUnclaimed);
+            };
+
+            const handleAddAsset = (e) => {
+                e.preventDefault();
+                if (!newSymbol || !newName || !newShares || !newPrice) return;
+
+                const sharesNum = parseFloat(newShares);
+                const priceNum = parseFloat(newPrice);
+                const colors = ['#ec4899', '#f43f5e', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+                const existingIndex = holdings.findIndex(h => h.symbol.toUpperCase() === newSymbol.toUpperCase());
+                let nextHoldings = [...holdings];
+                
+                if (existingIndex > -1) {
+                    const existing = holdings[existingIndex];
+                    const updatedShares = existing.shares + sharesNum;
+                    const updatedAvg = ((existing.shares * existing.avgBuyPrice) + (sharesNum * priceNum)) / updatedShares;
+                    nextHoldings[existingIndex] = {
+                        ...existing,
+                        shares: updatedShares,
+                        avgBuyPrice: parseFloat(updatedAvg.toFixed(2)),
+                        currentPrice: priceNum
+                    };
+                } else {
+                    const newHolding = {
+                        id: Date.now().toString(),
+                        symbol: newSymbol.toUpperCase(),
+                        name: newName,
+                        category: newCategory,
+                        shares: sharesNum,
+                        avgBuyPrice: priceNum,
+                        currentPrice: priceNum,
+                        color: randomColor,
+                        targetWeight: 0,
+                        estYield: 1.20,
+                        lastDividendDate: 'N/A',
+                        dividendPerShare: 0.00
+                    };
+                    nextHoldings.push(newHolding);
+                }
+
+                const nextTx = [{
+                    id: `tx-${Date.now()}`,
+                    type: 'BUY',
+                    symbol: newSymbol.toUpperCase(),
+                    category: newCategory,
+                    amount: sharesNum,
+                    price: priceNum,
+                    date: new Date().toISOString().split('T')[0]
+                }, ...transactions];
+
+                setHoldings(nextHoldings);
+                setTransactions(nextTx);
+                saveToCloud(nextHoldings, nextTx, claimedDividendsCash, unclaimedDividends);
+
+                setNewSymbol('');
+                setNewName('');
+                setNewShares('');
+                setNewPrice('');
+                setIsAddModalOpen(false);
+            };
+
+            const openBuySellModal = (asset) => {
+                setSelectedAssetForModal(asset);
+                setTradeAmount('');
+                setTradePrice(asset.currentPrice.toString());
+                setIsBuySellModalOpen(true);
+            };
+
+            const handleBuySellSubmit = (e) => {
+                e.preventDefault();
+                if (!selectedAssetForModal || !tradeAmount || !tradePrice) return;
+
+                const amountNum = parseFloat(tradeAmount);
+                const priceNum = parseFloat(tradePrice);
+                
+                let nextHoldings = holdings.map(h => {
+                    if (h.id === selectedAssetForModal.id) {
+                        if (tradeType === 'BUY') {
+                            const totalShares = h.shares + amountNum;
+                            const newAvg = ((h.shares * h.avgBuyPrice) + (amountNum * priceNum)) / totalShares;
+                            return { ...h, shares: totalShares, avgBuyPrice: parseFloat(newAvg.toFixed(2)), currentPrice: priceNum };
+                        } else {
+                            const totalShares = Math.max(0, h.shares - amountNum);
+                            return { ...h, shares: totalShares, currentPrice: priceNum };
+                        }
+                    }
+                    return h;
+                }).filter(h => h.shares > 0);
+
+                const nextTx = [{
+                    id: `tx-${Date.now()}`,
+                    type: tradeType,
+                    symbol: selectedAssetForModal.symbol,
+                    category: selectedAssetForModal.category,
+                    amount: amountNum,
+                    price: priceNum,
+                    date: new Date().toISOString().split('T')[0]
+                }, ...transactions];
+
+                setHoldings(nextHoldings);
+                setTransactions(nextTx);
+                saveToCloud(nextHoldings, nextTx, claimedDividendsCash, unclaimedDividends);
+
+                setIsBuySellModalOpen(false);
+            };
+
+            const deleteHolding = (id) => {
+                const asset = holdings.find(h => h.id === id);
+                if (asset) {
+                    const nextHoldings = holdings.filter(h => h.id !== id);
+                    const nextTx = [{
+                        id: `tx-${Date.now()}`,
+                        type: 'LIQUIDATE',
+                        symbol: asset.symbol,
+                        category: asset.category,
+                        amount: asset.shares,
+                        price: asset.currentPrice,
+                        date: new Date().toISOString().split('T')[0]
+                    }, ...transactions];
+
+                    setHoldings(nextHoldings);
+                    setTransactions(nextTx);
+                    saveToCloud(nextHoldings, nextTx, claimedDividendsCash, nextUnclaimed);
+                }
+            };
+
+            // Copilot function
+            const callGemini = async (userMessage) => {
+                setIsAiLoading(true);
+
+                const formattedHoldings = holdings.map(h => {
+                    const currentPct = totals.totalValue > 0 ? ((h.shares * h.currentPrice) / totals.totalValue) * 100 : 0;
+                    return `- ${h.symbol}: Current Weight: ${currentPct.toFixed(1)}% | Target Weight: ${h.targetWeight}% | Yield: ${h.estYield}% | Shares: ${h.shares}`;
+                }).join('\n');
+
+                const fullSystemPrompt = `${SYSTEM_PROMPT}\n\nCURRENT PORTFOLIO MATRIX:\n${formattedHoldings}\nTotal Value: $${totals.totalValue.toFixed(2)}\nTarget Setup Completion Status: ${totalTargetWeight}% out of 100%`;
+
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=`;
+
+                try {
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: userMessage }] }],
+                            systemInstruction: { parts: [{ text: fullSystemPrompt }] }
+                        })
+                    });
+                    const data = await response.json();
+                    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response received. Verify API services.";
+                    setMessages(prev => [...prev, { sender: 'assistant', text: replyText }]);
+                } catch (err) {
+                    setMessages(prev => [...prev, { sender: 'assistant', text: "Connection anomaly. Standalone environment has limited sandbox API routing." }]);
+                } finally {
+                    setIsAiLoading(false);
+                }
+            };
+
+            const handleSendMessage = (e) => {
+                e.preventDefault();
+                if (!copilotInput.trim()) return;
+                const msg = copilotInput;
+                setMessages(prev => [...prev, { sender: 'user', text: msg }]);
+                setCopilotInput('');
+                callGemini(msg);
+            };
+
+            const triggerPresetCopilotQuery = (queryType) => {
+                let queryText = '';
+                if (queryType === 'risk') {
+                    queryText = "Based on my target weights vs current weights, list the top three rebalancing actions I need to execute.";
+                } else if (queryType === 'rebalance') {
+                    queryText = "Calculate the precise cash injections required to rebalance my portfolio to exactly match my desired target allocations without selling anything.";
+                } else if (queryType === 'dividends') {
+                    queryText = "Explain the dividend yields of my portfolio. Which assets are the top contributors, and what is my estimated annual dividend income?";
+                }
+                setMessages(prev => [...prev, { sender: 'user', text: queryText }]);
+                setActiveTab('copilot');
+                callGemini(queryText);
+            };
+
+            // Chart Logic
+            const chartPoints = useMemo(() => {
+                const pointsCount = timeframe === '1D' ? 12 : timeframe === '1W' ? 7 : timeframe === '1M' ? 15 : 30;
+                const seedValue = totals.totalValue;
+                const volatility = timeframe === '1D' ? 0.005 : timeframe === '1W' ? 0.015 : timeframe === '1M' ? 0.04 : 0.09;
+                let current = seedValue * (1 - volatility * 0.5);
+                const points = [];
+                for (let i = 0; i < pointsCount; i++) {
+                    const progress = i / (pointsCount - 1);
+                    const wave = Math.sin(progress * Math.PI * 2) * (seedValue * volatility * 0.3);
+                    const trend = progress * (seedValue * (totals.gainPercentage > 0 ? 0.05 : -0.02));
+                    const value = current + wave + trend;
+                    let label = timeframe === '1D' ? `${Math.floor(9 + (i * 8)/pointsCount)}:00` : timeframe === '1W' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i % 7] : timeframe === '1M' ? `Day ${i+1}` : `M${Math.floor(i/2.5)+1}`;
+                    points.push({ label, value });
+                }
+                if (points.length > 0) points[points.length - 1].value = totals.totalValue;
+                return points;
+            }, [totals.totalValue, totals.gainPercentage, timeframe]);
+
+            const chartWidth = 600;
+            const chartHeight = 200;
+            const chartPadding = 35;
+            const coordinates = useMemo(() => {
+                if (chartPoints.length === 0) return [];
+                const minVal = Math.min(...chartPoints.map(p => p.value)) * 0.99;
+                const maxVal = Math.max(...chartPoints.map(p => p.value)) * 1.01;
+                const valRange = maxVal - minVal || 1;
+                return chartPoints.map((point, i) => {
+                    const x = chartPadding + (i / (chartPoints.length - 1)) * (chartWidth - chartPadding * 2);
+                    const y = chartHeight - chartPadding - ((point.value - minVal) / valRange) * (chartHeight - chartPadding * 2);
+                    return { x, y, value: point.value, label: point.label };
+                });
+            }, [chartPoints]);
+
+            const generatePath = () => {
+                if (coordinates.length === 0) return '';
+                return coordinates.reduce((path, p, i) => i === 0 ? `M ${p.x} ${p.y}` : `${path} L ${p.x} ${p.y}`, '');
+            };
+
+            const generateAreaPath = () => {
+                if (coordinates.length === 0) return '';
+                const path = generatePath();
+                const bottomY = chartHeight - chartPadding;
+                return `${path} L ${coordinates[coordinates.length-1].x} ${bottomY} L ${coordinates[0].x} ${bottomY} Z`;
+            };
+
+            // --- REDIRECT TO LOGIN IF NOT SIGNED IN ---
+            if (!user) {
+                return (
+                    <div className={`min-h-screen font-sans flex items-center justify-center p-4 transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
+                        <div className={`w-full max-w-md p-8 rounded-3xl border text-center transition-all ${isDarkMode ? 'bg-slate-900/50 border-slate-800 shadow-2xl' : 'bg-white border-slate-200 shadow-lg'}`}>
+                            <div className="bg-gradient-to-tr from-indigo-500 to-violet-500 w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-xl mx-auto mb-6">
+                                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            </div>
+
+                            <h1 className="text-2xl font-black tracking-tight mb-2">Secure Wealth Portal</h1>
+                            <p className="text-xs opacity-60 leading-relaxed max-w-xs mx-auto mb-8">
+                                Sign in with your Google account to securely access your portfolio tracking targets, custom weights, and transaction histories.
+                            </p>
+
+                            <button 
+                                onClick={handleSignIn}
+                                disabled={cloudStatus === 'connecting'}
+                                className="w-full bg-white text-slate-900 hover:bg-slate-100 border border-slate-300 font-extrabold text-sm py-3 px-4 rounded-xl shadow transition-all flex items-center justify-center space-x-2.5 disabled:opacity-50"
+                            >
+                                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                                    <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114A5.96 5.96 0 0 1 8.03 12.557a5.96 5.96 0 0 1 5.96-5.96c1.448 0 2.766.52 3.794 1.378l3.224-3.224c-1.996-1.858-4.57-3-7.018-3a10.16 10.16 0 0 0-10.16 10.16A10.16 10.16 0 0 0 13.99 22.36c5.542 0 10.02-4.542 10.02-10.02 0-.672-.054-1.343-.162-2.055H12.24z"/>
+                                </svg>
+                                <span>{cloudStatus === 'connecting' ? 'Verifying Identity...' : 'Sign In with Google'}</span>
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
+                    
+                    {/* Unclaimed Dividend Notification Banner */}
+                    {unclaimedDividends.some(d => !d.processed && !d.simulatedUpcoming) && (
+                        <div className="bg-gradient-to-r from-emerald-600 to-indigo-600 text-white font-semibold py-2 px-4 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-lg animate-bounce">
+                            <span>📢 Dividend Announcement! Click Claim to deposit in your Dividend Cash account.</span>
+                            <div className="flex items-center space-x-2">
+                                {unclaimedDividends.filter(d => !d.processed && !d.simulatedUpcoming).map(div => (
+                                    <button 
+                                        key={div.id}
+                                        onClick={() => claimDividend(div.id)}
+                                        className="bg-slate-900/40 hover:bg-slate-950 text-emerald-300 hover:text-white px-3 py-1 rounded-lg text-xs font-bold transition-all border border-emerald-500/20"
+                                    >
+                                        Claim ${div.amount.toFixed(2)} ({div.symbol})
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Navigation Header */}
+                    <header className={`border-b ${isDarkMode ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-white/80'} sticky top-0 z-40 backdrop-blur-md`}>
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                <div className="bg-gradient-to-tr from-indigo-500 to-violet-500 w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg">
+                                    <span className="text-xl">📊</span>
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-bold tracking-tight">Folio<span className="text-indigo-400">AI</span></h1>
+                                    <p className="text-[10px] opacity-60 font-medium">Standalone Asset Companion</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center space-x-3">
+                                <div className={`flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide border ${
+                                    cloudStatus === 'synced' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                    cloudStatus === 'saving' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                }`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'synced' ? 'bg-emerald-400' : 'bg-slate-400'}`}></span>
+                                    <span>{cloudStatus === 'synced' ? 'CLOUD SYNC' : cloudStatus === 'saving' ? 'SAVING' : 'OFFLINE'}</span>
+                                </div>
+
+                                <button 
+                                    onClick={() => setIsSimulatorRunning(!isSimulatorRunning)}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                                        isSimulatorRunning ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-500/10 text-slate-400'
+                                    }`}
+                                >
+                                    {isSimulatorRunning ? 'SIMULATOR ON' : 'SIMULATE'}
+                                </button>
+
+                                <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-lg border border-slate-800">
+                                    {isDarkMode ? '🌙' : '☀️'}
+                                </button>
+
+                                <button onClick={handleSignOut} className="bg-slate-850 hover:bg-slate-800 text-rose-400 text-xs font-bold border border-slate-700 px-3.5 py-2 rounded-xl">
+                                    Sign Out
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Dashboard Wrapper */}
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        
+                        {/* Upper Metric Widgets */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Net Equity Value</span>
+                                <div className="text-2xl font-extrabold mt-1">
+                                    ${totals.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                </div>
+                                <p className={`text-xs mt-1.5 font-bold ${totals.totalGain >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                    {totals.totalGain >= 0 ? '▲ +' : '▼ '}{totals.totalGain.toLocaleString()} ({totals.gainPercentage.toFixed(2)}%)
+                                </p>
+                            </div>
+
+                            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Rebalance Target Complete</span>
+                                <div className={`text-2xl font-extrabold mt-1 ${totalTargetWeight === 100 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                    {totalTargetWeight}% / 100%
+                                </div>
+                                <p className="text-[10px] opacity-50 mt-1.5">Desired allocation target balance</p>
+                            </div>
+
+                            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Claimed Dividend Cash</span>
+                                <div className="text-2xl font-extrabold mt-1 text-emerald-400">
+                                    ${claimedDividendsCash.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                </div>
+                                <p className="text-[10px] opacity-50 mt-1.5">Captured reinvestment cash flows</p>
+                            </div>
+
+                            <div className={`p-5 rounded-2xl border bg-gradient-to-br from-indigo-950/20 to-slate-900/40 border-slate-800`}>
+                                <span className="text-[10px] font-bold tracking-wider text-indigo-400 uppercase">AI Diagnostics</span>
+                                <div className="mt-2 flex flex-col space-y-1">
+                                    <button onClick={() => triggerPresetCopilotQuery('risk')} className="text-left text-[11px] font-semibold px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">📊 Rebalance Gaps</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Navigation Tabs */}
+                        <div className="flex border-b border-slate-800 mb-6 space-x-1">
+                            <button onClick={() => setActiveTab('dashboard')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'dashboard' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>📊 Dashboard</button>
+                            <button onClick={() => setActiveTab('holdings')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'holdings' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>⚙️ Targets &amp; Weight Deltas</button>
+                            <button onClick={() => setActiveTab('dividends')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'dividends' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>💰 Dividends</button>
+                        </div>
+
+                        {/* Main Screen Router */}
+                        {activeTab === 'dashboard' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div className={`lg:col-span-2 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                    <h3 className="font-bold text-lg">Value Growth Pathway</h3>
+                                    <div className="relative w-full h-48 mt-4">
+                                        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full overflow-visible">
+                                            <path d={generateAreaPath()} fill="rgba(99,102,241,0.15)" />
+                                            <path d={generatePath()} fill="none" stroke="#6366f1" strokeWidth="3" />
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                    <h3 className="font-bold text-lg mb-4">Diversification Breakdown</h3>
+                                    <div className="space-y-3">
+                                        {holdings.map(h => {
+                                            const weight = totals.totalValue > 0 ? ((h.shares * h.currentPrice) / totals.totalValue) * 100 : 0;
+                                            return (
+                                                <div key={h.id} className="flex items-center justify-between text-xs font-semibold">
+                                                    <span className="flex items-center space-x-2">
+                                                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: h.color }}></span>
+                                                        <span>{h.symbol}</span>
+                                                    </span>
+                                                    <span>{weight.toFixed(1)}%</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className={`lg:col-span-3 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                    <h3 className="font-bold text-lg mb-4">Open Allocation Positions</h3>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-xs sm:text-sm">
+                                            <thead>
+                                                <tr className="border-b border-slate-800 opacity-60">
+                                                    <th className="py-2.5 px-2">Asset</th>
+                                                    <th className="py-2.5 px-2 text-right">Shares</th>
+                                                    <th className="py-2.5 px-2 text-right">Market Value</th>
+                                                    <th className="py-2.5 px-2 text-right">Current Weight</th>
+                                                    <th className="py-2.5 px-2 text-right">Target Weight</th>
+                                                    <th className="py-2.5 px-2 text-right">Action Gap</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {holdings.map(h => {
+                                                    const val = h.shares * h.currentPrice;
+                                                    const curW = totals.totalValue > 0 ? (val / totals.totalValue) * 100 : 0;
+                                                    const tarVal = (h.targetWeight / 100) * totals.totalValue;
+                                                    const cashG = tarVal - val;
+                                                    return (
+                                                        <tr key={h.id} className="hover:bg-slate-800/10 border-b border-slate-800/40">
+                                                            <td className="py-3 px-2 font-bold">{h.symbol}</td>
+                                                            <td className="py-3 px-2 text-right">{h.shares.toLocaleString()}</td>
+                                                            <td className="py-3 px-2 text-right font-extrabold">${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                                            <td className="py-3 px-2 text-right">{curW.toFixed(1)}%</td>
+                                                            <td className="py-3 px-2 text-right">{h.targetWeight}%</td>
+                                                            <td className={`py-3 px-2 text-right font-extrabold ${cashG >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                                {cashG >= 10 ? `BUY $${cashG.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : cashG <= -10 ? `SELL $${Math.abs(cashG).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : 'BALANCED'}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Weight Target Setup */}
+                        {activeTab === 'holdings' && (
+                            <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                <h3 className="font-bold text-lg mb-4">Target Matrix Settings</h3>
+                                <div className="space-y-4">
+                                    {holdings.map(h => (
+                                        <div key={h.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-800/20 border border-slate-800/40">
+                                            <span className="font-bold">{h.symbol}</span>
+                                            <div className="flex items-center space-x-2">
+                                                <input 
+                                                    type="number" 
+                                                    min="0" 
+                                                    max="100" 
+                                                    value={h.targetWeight} 
+                                                    onChange={(e) => handleTargetWeightChange(h.id, e.target.value)}
+                                                    className="w-16 text-center px-1 py-1 rounded font-bold bg-slate-800 border border-slate-700 text-white"
+                                                />
+                                                <span className="font-bold text-xs">% target weight</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Dividends View */}
+                        {activeTab === 'dividends' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                    <h3 className="font-bold text-lg mb-4">Historical Income Log</h3>
+                                    <div className="space-y-3">
+                                        {unclaimedDividends.map((div, idx) => (
+                                            <div key={idx} className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 flex items-center justify-between">
+                                                <div>
+                                                    <span className="font-bold text-sm block">{div.symbol} Cash Flow</span>
+                                                    <span className="text-[10px] opacity-60 block">Declared On: {div.date}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="font-extrabold text-emerald-400 block">${div.amount.toFixed(2)}</span>
+                                                    {div.processed ? (
+                                                        <span className="text-xs font-semibold text-slate-500">PAID</span>
+                                                    ) : (
+                                                        <button onClick={() => claimDividend(div.id)} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold px-2.5 py-1 rounded">Claim</button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                    </div>
+
+                    {/* Trade Trigger Dialog Modal */}
+                    {isBuySellModalOpen && selectedAssetForModal && (
+                        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                            <div className="w-full max-w-md p-6 rounded-2xl border border-slate-800 bg-slate-900 text-white">
+                                <h3 className="font-bold text-lg mb-4">Trade Position Sim - {selectedAssetForModal.symbol}</h3>
+                                <form onSubmit={handleBuySellSubmit} className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button type="button" onClick={() => setTradeType('BUY')} className={`py-1.5 rounded-xl text-xs font-bold ${tradeType==='BUY'?'bg-emerald-500/20 text-emerald-400 border border-emerald-500':'border border-slate-800'}`}>BUY</button>
+                                        <button type="button" onClick={() => setTradeType('SELL')} className={`py-1.5 rounded-xl text-xs font-bold ${tradeType==='SELL'?'bg-rose-500/20 text-rose-400 border border-rose-500':'border border-slate-800'}`}>SELL</button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input type="number" step="any" placeholder="Shares" value={tradeAmount} onChange={(e) => setTradeAmount(e.target.value)} className="p-2 bg-slate-800 rounded border border-slate-700 text-sm" required />
+                                        <input type="number" step="any" placeholder="Price" value={tradePrice} onChange={(e) => setTradePrice(e.target.value)} className="p-2 bg-slate-800 rounded border border-slate-700 text-sm" required />
+                                    </div>
+                                    <button type="submit" className="w-full py-2 bg-indigo-600 rounded-xl text-sm font-bold">Process Simulation Trade</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            );
+        }
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
