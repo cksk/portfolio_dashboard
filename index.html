@@ -3,212 +3,1011 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FolioAI - Pure Equity Production Dashboard</title>
+    <title>FolioAI - Pure Equity Cloud Portfolio</title>
+    
+    <!-- Tailwind CSS for premium utility styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React and Babel CDNs to run JSX directly in the browser -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 99px; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        /* Custom scrollbar aesthetics */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 99px;
+        }
+        /* Custom animations */
+        @keyframes slideIn {
+            from { transform: translateY(1rem); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-in {
+            animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
+
+    <!-- Root target for React mounting -->
     <div id="root"></div>
 
+    <!-- Firebase SDK ES Modules CDN -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Bind directly to window so our Babel script can access them safely
-        window.FirebaseSDK = { initializeApp, getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, getFirestore, doc, setDoc, onSnapshot };
+        // Expose modules to the window context so Babel-transpiled React can consume them
+        window.FirebaseSDK = { initializeApp, getAuth, signInWithPopup, GoogleAuthProvider, signOut, onSnapshot, getFirestore, doc, setDoc };
     </script>
 
+    <!-- Main React App Script (Transpiled on the fly by Babel) -->
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
-
-        // =========================================================================
-        // ⚠️ PASTE YOUR REAL SECURE FIREBASE CONFIG DETAILS HERE ⚠️
-        // =========================================================================
-        const firebaseConfig = {
-            apiKey: "AIzaSyBRgONBX1nXM0fPjYhQsqfYBjq41NyU-fc",
-            authDomain: "calvin-dashboard.firebaseapp.com",
-            projectId: "calvin-dashboard",
-            storageBucket: "calvin-dashboard.appspot.com",
-            messagingSenderId: "641414141414",
-            appId: "1:641414141414:web:1234567890abcdef"
+        const getFirebaseTools = () => {
+            return window.FirebaseSDK || {
+                initializeApp: () => {}, getAuth: () => {}, signInWithPopup: () => {}, GoogleAuthProvider: () => {}, signOut: () => {}, onSnapshot: () => {}, getFirestore: () => {}, doc: () => {}, setDoc: () => {}
+            };
         };
 
-        const USD_TO_HKD = 7.80; // Default baseline fallback variable
+        const { useState, useEffect, useMemo } = React;
 
-        const DEFAULT_BLANK_HOLDINGS = [
-            { id: '1', symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', category: 'Stocks', shares: 0, avgBuyPrice: 0, currentPrice: 278.60, color: '#3b82f6', targetWeight: 45, estYield: 1.38, expenseRatio: 0.03, currency: 'USD' },
-            { id: '2', symbol: 'SCHG', name: 'Schwab U.S. Large-Cap Growth ETF', category: 'Stocks', shares: 0, avgBuyPrice: 0, currentPrice: 112.45, color: '#60a5fa', targetWeight: 25, estYield: 0.43, expenseRatio: 0.04, currency: 'USD' },
-            { id: '3', symbol: 'SCHF', name: 'Schwab International Equity ETF', category: 'Stocks', shares: 0, avgBuyPrice: 0, currentPrice: 41.12, color: '#10b981', targetWeight: 15, estYield: 2.85, expenseRatio: 0.06, currency: 'USD' },
-            { id: '4', symbol: 'SMH', name: 'VanEck Semiconductor ETF', category: 'Stocks', shares: 0, avgBuyPrice: 0, currentPrice: 254.80, color: '#f59e0b', targetWeight: 10, estYield: 0.50, expenseRatio: 0.35, currency: 'USD' },
-            { id: '5', symbol: '3110.HK', name: 'Global X China Biotech ETF', category: 'Stocks', shares: 0, avgBuyPrice: 0, currentPrice: 6.12, color: '#8b5cf6', targetWeight: 2.5, estYield: 0.00, expenseRatio: 0.50, currency: 'HKD' },
-            { id: '6', symbol: '3010.HK', name: 'Amundi MSCI China UCITS ETF', category: 'Stocks', shares: 0, avgBuyPrice: 0, currentPrice: 4.45, color: '#eab308', targetWeight: 2.5, estYield: 1.10, expenseRatio: 0.28, currency: 'HKD' }
+        // --- LOOK-THROUGH METADATA FOR GEOGRAPHIC, SECTOR & STOCK OVERLAPS ---
+        const ASSET_METADATA = {
+            VTI: {
+                geographic: { US: 99.5, Europe: 0, AsiaPacific: 0.5, ChinaHK: 0 },
+                sectors: { Technology: 39.3, Consumer: 13.4, Financials: 10.3, Healthcare: 8.8, Communications: 10.0, Industrials: 12.4, Other: 5.8 },
+                holdings: { NVDA: 6.62, AAPL: 5.73, MSFT: 4.35, AMZN: 3.68, GOOGL: 3.22 },
+                beta: 1.00,
+                lotSize: 1
+            },
+            SCHG: {
+                geographic: { US: 99.7, Europe: 0, AsiaPacific: 0.3, ChinaHK: 0 },
+                sectors: { Technology: 46.1, Consumer: 12.4, Financials: 6.7, Healthcare: 8.3, Communications: 15.6, Industrials: 6.1, Other: 4.8 },
+                holdings: { NVDA: 11.92, AAPL: 9.76, MSFT: 6.89, AMZN: 5.63, GOOGL: 5.02 },
+                beta: 1.15,
+                lotSize: 1
+            },
+            SCHF: {
+                geographic: { US: 0.5, Europe: 55.0, AsiaPacific: 40.0, ChinaHK: 4.5 },
+                sectors: { Technology: 18.2, Consumer: 11.5, Financials: 19.8, Healthcare: 12.5, Communications: 5.0, Industrials: 15.0, Other: 18.0 },
+                holdings: { ASML: 3.50, NOVN: 2.10, NESN: 2.50, ROG: 1.80, TTE: 1.50 },
+                beta: 0.88,
+                lotSize: 1
+            },
+            SMH: {
+                geographic: { US: 82.9, Europe: 5.0, AsiaPacific: 12.1, ChinaHK: 0 },
+                sectors: { Technology: 100.0, Consumer: 0, Financials: 0, Healthcare: 0, Communications: 0, Industrials: 0, Other: 0 },
+                holdings: { NVDA: 17.10, TSM: 9.55, INTC: 7.94, AVGO: 7.14, AMD: 7.00 },
+                beta: 1.45,
+                lotSize: 1
+            },
+            '3110.HK': {
+                geographic: { US: 0, Europe: 0, AsiaPacific: 0, ChinaHK: 100.0 },
+                sectors: { Technology: 0, Consumer: 0, Financials: 0, Healthcare: 100.0, Communications: 0, Industrials: 0, Other: 0 },
+                holdings: { BEIGENE: 15.00, WUXI_BIO: 12.00, INNOVENT: 10.00, AKESO: 8.00, SINO_PHARMA: 6.00 },
+                beta: 0.92,
+                lotSize: 500
+            },
+            '3010.HK': {
+                geographic: { US: 0, Europe: 0, AsiaPacific: 35.0, ChinaHK: 65.0 },
+                sectors: { Technology: 45.4, Consumer: 15.0, Financials: 18.0, Healthcare: 5.0, Communications: 10.0, Industrials: 5.0, Other: 1.6 },
+                holdings: { TSM: 15.83, SMSN: 8.58, SK_HYNIX: 6.41, TENCENT: 3.26, ALIBABA: 2.51 },
+                beta: 0.82,
+                lotSize: 100
+            }
+        };
+
+        // --- SYSTEM PROMPT FOR CO-PILOT ---
+        const SYSTEM_PROMPT = `You are "FolioAI", an elite financial portfolio assistant and risk advisor. 
+        You are analyzing the user's pure equity portfolio consisting of: VTI, SCHG, SCHF, SMH, 3110.HK, and 3010.HK.
+        Your goal is to provide highly analytical, insightful, and strategic feedback. Include the new risk metrics and stress-testing drawdowns.`;
+
+        // --- INITIAL DATASEED FOR NEW ACCOUNTS ---
+        const INITIAL_HOLDINGS = [
+            { id: '1', symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', category: 'Stocks', shares: 77, avgBuyPrice: 245.50, currentPrice: 278.60, color: '#3b82f6', targetWeight: 45, estYield: 1.38, lastDividendDate: '2026-03-24', dividendPerShare: 0.95, currency: 'USD', expenseRatio: 0.03 },
+            { id: '2', symbol: 'SCHG', name: 'Schwab U.S. Large-Cap Growth ETF', category: 'Stocks', shares: 58, avgBuyPrice: 91.20, currentPrice: 112.45, color: '#60a5fa', targetWeight: 25, estYield: 0.43, lastDividendDate: '2026-03-20', dividendPerShare: 0.12, currency: 'USD', expenseRatio: 0.04 },
+            { id: '3', symbol: 'SCHF', name: 'Schwab International Equity ETF', category: 'Stocks', shares: 34, avgBuyPrice: 35.40, currentPrice: 41.12, color: '#10b981', targetWeight: 15, estYield: 2.85, lastDividendDate: '2026-06-18', dividendPerShare: 0.29, currency: 'USD', expenseRatio: 0.06 },
+            { id: '4', symbol: 'SMH', name: 'VanEck Semiconductor ETF', category: 'Stocks', shares: 17, avgBuyPrice: 205.10, currentPrice: 254.80, color: '#f59e0b', targetWeight: 10, estYield: 0.50, lastDividendDate: '2026-03-15', dividendPerShare: 0.31, currency: 'USD', expenseRatio: 0.35 },
+            { id: '5', symbol: '3110.HK', name: 'Global X China Biotech ETF', category: 'Stocks', shares: 200, avgBuyPrice: 5.15, currentPrice: 6.12, color: '#8b5cf6', targetWeight: 2.5, estYield: 0.00, lastDividendDate: 'N/A', dividendPerShare: 0.00, currency: 'HKD', expenseRatio: 0.50 },
+            { id: '6', symbol: '3010.HK', name: 'Amundi MSCI China UCITS ETF', category: 'Stocks', shares: 300, avgBuyPrice: 3.80, currentPrice: 4.45, color: '#eab308', targetWeight: 2.5, estYield: 1.10, lastDividendDate: '2026-05-10', dividendPerShare: 0.05, currency: 'HKD', expenseRatio: 0.30 }
+        ];
+
+        const INITIAL_TRANSACTIONS = [
+            { id: 'tx-1', type: 'BUY', symbol: 'VTI', category: 'Stocks', amount: 77, price: 245.50, date: '2026-01-10', currency: 'USD' },
+            { id: 'tx-2', type: 'BUY', symbol: 'SCHG', category: 'Stocks', amount: 58, price: 91.20, date: '2026-02-15', currency: 'USD' },
+            { id: 'tx-3', type: 'BUY', symbol: 'SCHF', category: 'Stocks', amount: 34, price: 35.40, date: '2026-03-05', currency: 'USD' },
+            { id: 'tx-4', type: 'BUY', symbol: 'SMH', category: 'Stocks', amount: 17, price: 205.10, date: '2026-03-22', currency: 'USD' },
+            { id: 'tx-5', type: 'BUY', symbol: '3110.HK', category: 'Stocks', amount: 200, price: 5.15, date: '2026-04-02', currency: 'HKD' },
+            { id: 'tx-6', type: 'BUY', symbol: '3010.HK', category: 'Stocks', amount: 300, price: 3.80, date: '2026-04-18', currency: 'HKD' }
         ];
 
         function App() {
+            // --- PASTE YOUR FIREBASE CONFIG HERE ---
+            const firebaseConfig = {
+                apiKey: "AIzaSyBRgONBX1nXM0fPjYhQsqfYBjq41NyU-fc",
+                authDomain: "calvin-dashboard.firebaseapp.com",
+                projectId: "calvin-dashboard",
+                storageBucket: "calvin-dashboard.firebasestorage.app",
+                messagingSenderId: "921825941721",
+                appId: "1:921825941721:web:53815a10796cb4843e06c8"
+            };
+
             const [holdings, setHoldings] = useState([]);
             const [transactions, setTransactions] = useState([]);
-            const [claimedDividendsCash, setClaimedDividendsCash] = useState(0);
-            const [user, setUser] = useState(null);
-            const [authLoading, setAuthLoading] = useState(true);
-            const [cloudStatus, setCloudStatus] = useState('connecting');
             const [activeTab, setActiveTab] = useState('dashboard');
-            const [fxRate, setFxRate] = useState(USD_TO_HKD);
-            const [isSyncing, setIsSyncing] = useState(false);
-
-            // Transaction modal elements state
-            const [txSymbol, setTxSymbol] = useState('VTI');
-            const [txType, setTxType] = useState('BUY');
-            const [txShares, setTxShares] = useState('');
-            const [txPrice, setTxPrice] = useState('');
-            const [txComm, setTxComm] = useState('0');
-
-            const sdk = window.FirebaseSDK;
+            const [timeframe, setTimeframe] = useState('1M'); 
+            const [isSimulatorRunning, setIsSimulatorRunning] = useState(false);
+            const [selectedAssetForModal, setSelectedAssetForModal] = useState(null);
             
-            const app = useMemo(() => sdk.initializeApp(firebaseConfig), []);
-            const auth = useMemo(() => sdk.getAuth(app), [app]);
-            const db = useMemo(() => sdk.getFirestore(app), [app]);
+            // Dynamic exchange rate hook (synchronized dynamically from Yahoo Finance)
+            const [usdToHkd, setUsdToHkd] = useState(7.80);
+            const [lastPriceSync, setLastPriceSync] = useState(null);
 
-            // Session persistence observer engine
+            const [claimedDividendsCash, setClaimedDividendsCash] = useState(0); // in USD
+            const [unclaimedDividends, setUnclaimedDividends] = useState([
+                { id: 'div-1', symbol: '3010.HK', amount: 15.00, perShare: 0.05, date: '2026-05-10', processed: false, currency: 'HKD' },
+                { id: 'div-2', symbol: 'VTI', amount: 73.15, perShare: 0.95, date: '2026-06-24', processed: false, simulatedUpcoming: true, currency: 'USD' }
+            ]);
+
+            // Form states
+            const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+            const [isBuySellModalOpen, setIsBuySellModalOpen] = useState(false);
+            const [isClaimDivModalOpen, setIsClaimDivModalOpen] = useState(false);
+            const [selectedDivToClaim, setSelectedDivToClaim] = useState(null);
+
+            const [newSymbol, setNewSymbol] = useState('');
+            const [newName, setNewName] = useState('');
+            const [newCategory, setNewCategory] = useState('Stocks');
+            const [newShares, setNewShares] = useState('');
+            const [newPrice, setNewPrice] = useState('');
+            const [newCurrency, setNewCurrency] = useState('USD');
+            const [newExpenseRatio, setNewExpenseRatio] = useState('0.10');
+
+            const [tradeType, setTradeType] = useState('BUY');
+            const [tradeAmount, setTradeAmount] = useState('');
+            const [tradePrice, setTradePrice] = useState('');
+
+            // Dividend commission form state
+            const [divCommissionType, setDivCommissionType] = useState('FLAT'); 
+            const [divCommissionVal, setDivCommissionVal] = useState('1.99');
+
+            // Interactive compounding projector sliders
+            const [projectorYears, setProjectorYears] = useState(10);
+            const [projectorCagr, setProjectorCagr] = useState(7.5); 
+            const [isDripEnabled, setIsDripEnabled] = useState(true);
+
+            // Active Stress test index
+            const [activeStressTest, setActiveStressTest] = useState(null);
+
+            // AI Copilot
+            const [copilotInput, setCopilotInput] = useState('');
+            const [messages, setMessages] = useState([
+                { sender: 'assistant', text: "Welcome! Your dashboard is active with Google Sign-In protection. Sync your live rates to see the latest valuation!" }
+            ]);
+            const [isAiLoading, setIsAiLoading] = useState(false);
+            const [isDarkMode, setIsDarkMode] = useState(true);
+
+            // Google Sign-In Auth State
+            const [user, setUser] = useState(null);
+            const [cloudStatus, setCloudStatus] = useState('connecting'); // connecting | synced | saving | error | unauthenticated
+
             useEffect(() => {
-                if (!sdk) return;
-                return sdk.onAuthStateChanged(auth, (firebaseUser) => {
-                    if (firebaseUser) {
-                        setUser(firebaseUser);
-                        setAuthLoading(false);
-                    } else {
-                        setUser(null);
-                        setAuthLoading(false);
-                        setCloudStatus('offline');
-                    }
-                });
-            }, [auth, sdk]);
+                const tools = getFirebaseTools();
+                if (!tools.initializeApp || firebaseConfig.apiKey === "PASTE_YOUR_API_KEY_HERE") {
+                    setCloudStatus('unauthenticated');
+                    return;
+                }
 
-            // Database core stream binding
-            useEffect(() => {
-                if (!user || !sdk) return;
-                setCloudStatus('connecting');
-                
-                const docRef = sdk.doc(db, 'artifacts', 'portfolio-dashboard-main', 'users', user.uid, 'portfolioState', 'data');
-                
-                return sdk.onSnapshot(docRef, (docSnap) => {
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        setHoldings(data.holdings || DEFAULT_BLANK_HOLDINGS);
-                        setTransactions(data.transactions || []);
-                        setClaimedDividendsCash(data.claimedDividendsCash || 0);
-                        setCloudStatus('synced');
-                    } else {
-                        sdk.setDoc(docRef, { holdings: DEFAULT_BLANK_HOLDINGS, transactions: [], claimedDividendsCash: 0 })
-                            .then(() => setCloudStatus('synced'))
-                            .catch(() => setCloudStatus('error'));
-                    }
-                }, () => setCloudStatus('error'));
-            }, [user, db, sdk]);
-
-            // Live Asset/Forex Synchronization Module
-            const syncMarketData = async () => {
-                setIsSyncing(true);
                 try {
-                    const fxRes = await axios.get('https://api.allorigins.win/raw?url=https://query1.finance.yahoo.com/v8/finance/chart/HKD=X');
-                    const liveFx = fxRes.data.chart.result[0].meta.regularMarketPrice;
-                    if (liveFx) setFxRate(liveFx);
-                    
-                    // Update current structural prices matching ticker sets...
-                    alert("Market updates and dynamic FX conversions synced cleanly!");
-                } catch (e) {
-                    console.error("Sync error bypass:", e);
-                } finally {
-                    setIsSyncing(false);
+                    const app = tools.initializeApp(firebaseConfig);
+                    const auth = tools.getAuth(app);
+                    const db = tools.getFirestore(app);
+
+                    const unsubscribe = tools.onAuthStateChanged(auth, (currentUser) => {
+                        setUser(currentUser);
+                        if (currentUser) {
+                            setCloudStatus('connecting');
+                            // Load document
+                            const docRef = tools.doc(db, 'artifacts', 'portfolio-dashboard-main', 'users', currentUser.uid, 'portfolioState', 'data');
+                            tools.onSnapshot(docRef, (docSnap) => {
+                                if (docSnap.exists()) {
+                                    const cloudData = docSnap.data();
+                                    if (cloudData.holdings) setHoldings(cloudData.holdings);
+                                    if (cloudData.transactions) setTransactions(cloudData.transactions);
+                                    if (typeof cloudData.claimedDividendsCash !== 'undefined') setClaimedDividendsCash(cloudData.claimedDividendsCash);
+                                    if (cloudData.unclaimedDividends) setUnclaimedDividends(cloudData.unclaimedDividends);
+                                    setCloudStatus('synced');
+                                } else {
+                                    // Seeding empty holdings on fresh register
+                                    tools.setDoc(docRef, {
+                                        holdings: [],
+                                        transactions: [],
+                                        claimedDividendsCash: 0,
+                                        unclaimedDividends: []
+                                    }).then(() => setCloudStatus('synced'));
+                                }
+                            }, () => setCloudStatus('error'));
+                        } else {
+                            setCloudStatus('unauthenticated');
+                        }
+                    });
+
+                    return () => unsubscribe();
+                } catch (err) {
+                    console.error("Firebase Auth binding failed: ", err);
+                    setCloudStatus('unauthenticated');
+                }
+            }, []);
+
+            const handleGoogleSignIn = async () => {
+                const tools = getFirebaseTools();
+                const app = tools.initializeApp(firebaseConfig);
+                const auth = tools.getAuth(app);
+                const provider = new tools.GoogleAuthProvider();
+
+                setCloudStatus('connecting');
+                try {
+                    await tools.signInWithPopup(auth, provider);
+                } catch (error) {
+                    console.error("Google Sign-In failed: ", error);
+                    setCloudStatus('unauthenticated');
                 }
             };
 
-            const commitTransaction = async (e) => {
+            const handleSignOut = async () => {
+                const tools = getFirebaseTools();
+                const app = tools.initializeApp(firebaseConfig);
+                const auth = tools.getAuth(app);
+
+                try {
+                    await tools.signOut(auth);
+                    setHoldings([]);
+                    setTransactions([]);
+                    setClaimedDividendsCash(0);
+                    setCloudStatus('unauthenticated');
+                } catch (err) {
+                    console.error("Sign out failed: ", err);
+                }
+            };
+
+            const saveToCloud = async (newHoldings, newTransactions, newDividendsCash, newUnclaimed) => {
+                const tools = getFirebaseTools();
+                if (!tools.initializeApp || !user) return;
+                setCloudStatus('saving');
+
+                try {
+                    const app = tools.initializeApp(firebaseConfig);
+                    const db = tools.getFirestore(app);
+                    const docRef = tools.doc(db, 'artifacts', 'portfolio', 'users', user.uid, 'portfolioState', 'data');
+                    
+                    await tools.setDoc(docRef, {
+                        holdings: newHoldings,
+                        transactions: newTransactions,
+                        claimedDividendsCash: newDividendsCash,
+                        unclaimedDividends: newUnclaimed
+                    });
+                    setCloudStatus('synced');
+                } catch (err) {
+                    console.error("Failed cloud state save: ", err);
+                    setCloudStatus('error');
+                }
+            };
+
+            // --- REAL-TIME DATA & FOREX SYNC (Yahoo Finance API) ---
+            const syncLiveMarketPrices = async () => {
+                setLastPriceSync("Syncing...");
+                let updatedHoldings = [...holdings];
+
+                // 1. Fetch live currency quote for USD/HKD forex mapping
+                try {
+                    const fxUrl = `https://query1.finance.yahoo.com/v8/finance/chart/HKD=X?interval=1d&range=1d`;
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(fxUrl)}`;
+                    const response = await fetch(proxyUrl);
+                    if (response.ok) {
+                        const resJson = await response.json();
+                        const contents = JSON.parse(resJson.contents);
+                        const rate = contents?.chart?.result?.[0]?.meta?.regularMarketPrice;
+                        if (rate) {
+                            setUsdToHkd(parseFloat(rate.toFixed(4)));
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Could not sync live forex rates. Fallback to peg of 7.80.");
+                }
+
+                // 2. Fetch closing price for each individual ticker
+                for (let i = 0; i < updatedHoldings.length; i++) {
+                    const h = updatedHoldings[i];
+                    try {
+                        const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${h.symbol}?interval=1d&range=2d`;
+                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+                        const response = await fetch(proxyUrl);
+                        
+                        if (response.ok) {
+                            const resJson = await response.json();
+                            const contents = JSON.parse(resJson.contents);
+                            const result = contents?.chart?.result?.[0];
+                            if (result) {
+                                const currentPrice = result.meta.regularMarketPrice;
+                                updatedHoldings[i] = {
+                                    ...h,
+                                    currentPrice: parseFloat(currentPrice.toFixed(2))
+                                };
+                            }
+                        }
+                    } catch (err) {
+                        console.warn(`Failed syncing closing quote for: ${h.symbol}`);
+                    }
+                }
+
+                setHoldings(updatedHoldings);
+                saveToCloud(updatedHoldings, transactions, claimedDividendsCash, unclaimedDividends);
+                setLastPriceSync(new Date().toLocaleTimeString());
+            };
+
+            const totals = useMemo(() => {
+                let totalValueUSD = 0;
+                let totalCostUSD = 0;
+                let categoryMap = {};
+
+                holdings.forEach(h => {
+                    const isHKD = h.currency === 'HKD';
+                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
+                    const avgBuyPriceUSD = isHKD ? h.avgBuyPrice / usdToHkd : h.avgBuyPrice;
+
+                    const valueUSD = h.shares * currentPriceUSD;
+                    const costUSD = h.shares * avgBuyPriceUSD;
+
+                    totalValueUSD += valueUSD;
+                    totalCostUSD += costUSD;
+
+                    if (!categoryMap[h.category]) {
+                        categoryMap[h.category] = { name: h.category, value: 0, color: h.color };
+                    }
+                    categoryMap[h.category].value += valueUSD;
+                });
+
+                const totalGainUSD = totalValueUSD - totalCostUSD;
+                const gainPercentage = totalCostUSD > 0 ? (totalGainUSD / totalCostUSD) * 100 : 0;
+
+                const categories = Object.values(categoryMap).map(c => ({
+                    ...c,
+                    percentage: totalValueUSD > 0 ? (c.value / totalValueUSD) * 100 : 0
+                }));
+
+                // Calculate Weighted Expense Ratio
+                let weightedExpenseRatio = 0;
+                holdings.forEach(h => {
+                    const isHKD = h.currency === 'HKD';
+                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
+                    const valUSD = h.shares * currentPriceUSD;
+                    const weight = totalValueUSD > 0 ? (valUSD / totalValueUSD) : 0;
+                    weightedExpenseRatio += weight * h.expenseRatio;
+                });
+
+                const annualDragUSD = totalValueUSD * (weightedExpenseRatio / 100);
+
+                // Calculate Portfolio Beta
+                let portfolioBeta = 0;
+                holdings.forEach(h => {
+                    const isHKD = h.currency === 'HKD';
+                    const valUSD = h.shares * (isHKD ? h.currentPrice / usdToHkd : h.currentPrice);
+                    const weight = totalValueUSD > 0 ? (valUSD / totalValueUSD) : 0;
+                    const meta = ASSET_METADATA[h.symbol] || { beta: 1.0 };
+                    portfolioBeta += weight * meta.beta;
+                });
+
+                return {
+                    totalValueUSD,
+                    totalValueHKD: totalValueUSD * usdToHkd,
+                    totalCostUSD,
+                    totalCostHKD: totalCostUSD * usdToHkd,
+                    totalGainUSD,
+                    totalGainHKD: totalGainUSD * usdToHkd,
+                    gainPercentage,
+                    categories,
+                    weightedExpenseRatio,
+                    annualDragUSD,
+                    annualDragHKD: annualDragUSD * usdToHkd,
+                    portfolioBeta
+                };
+            }, [holdings, usdToHkd]);
+
+            // Geographic Exposure looked through
+            const geographicExposure = useMemo(() => {
+                let totalsMap = { US: 0, Europe: 0, AsiaPacific: 0, ChinaHK: 0 };
+                let totalPortfolioVal = totals.totalValueUSD;
+                if (totalPortfolioVal === 0) return [];
+
+                holdings.forEach(h => {
+                    const meta = ASSET_METADATA[h.symbol];
+                    const isHKD = h.currency === 'HKD';
+                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
+                    const assetValUSD = h.shares * currentPriceUSD;
+
+                    if (meta && meta.geographic) {
+                        Object.keys(meta.geographic).forEach(geo => {
+                            totalsMap[geo] += (meta.geographic[geo] / 100) * assetValUSD;
+                        });
+                    } else {
+                        totalsMap.US += assetValUSD; 
+                    }
+                });
+
+                return Object.keys(totalsMap).map(geo => ({
+                    name: geo === 'ChinaHK' ? 'China / Hong Kong' : geo === 'AsiaPacific' ? 'Asia-Pacific (ex-China)' : geo,
+                    valueUSD: totalsMap[geo],
+                    percentage: (totalsMap[geo] / totalPortfolioVal) * 100
+                })).sort((a,b) => b.valueUSD - a.valueUSD);
+            }, [holdings, totals.totalValueUSD, usdToHkd]);
+
+            // Sector Exposure looked through
+            const sectorExposure = useMemo(() => {
+                let totalsMap = { Technology: 0, Consumer: 0, Financials: 0, Healthcare: 0, Communications: 0, Industrials: 0, Other: 0 };
+                let totalPortfolioVal = totals.totalValueUSD;
+                if (totalPortfolioVal === 0) return [];
+
+                holdings.forEach(h => {
+                    const meta = ASSET_METADATA[h.symbol];
+                    const isHKD = h.currency === 'HKD';
+                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
+                    const assetValUSD = h.shares * currentPriceUSD;
+
+                    if (meta && meta.sectors) {
+                        Object.keys(meta.sectors).forEach(sec => {
+                            totalsMap[sec] += (meta.sectors[sec] / 100) * assetValUSD;
+                        });
+                    } else {
+                        totalsMap.Other += assetValUSD; 
+                    }
+                });
+
+                return Object.keys(totalsMap).map(sec => ({
+                    name: sec,
+                    valueUSD: totalsMap[sec],
+                    percentage: (totalsMap[sec] / totalPortfolioVal) * 100
+                })).sort((a,b) => b.valueUSD - a.valueUSD);
+            }, [holdings, totals.totalValueUSD, usdToHkd]);
+
+            // Implied stock holdings looked through
+            const overlaps = useMemo(() => {
+                let stocksMap = {};
+                let totalPortfolioVal = totals.totalValueUSD;
+                if (totalPortfolioVal === 0) return [];
+
+                holdings.forEach(h => {
+                    const meta = ASSET_METADATA[h.symbol];
+                    const isHKD = h.currency === 'HKD';
+                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
+                    const assetValUSD = h.shares * currentPriceUSD;
+
+                    if (meta && meta.holdings) {
+                        Object.keys(meta.holdings).forEach(ticker => {
+                            if (!stocksMap[ticker]) {
+                                stocksMap[ticker] = {
+                                    symbol: ticker,
+                                    sources: [],
+                                    totalValueUSD: 0
+                                };
+                            }
+                            const weightInEtf = meta.holdings[ticker] / 100;
+                            const impliedValUSD = weightInEtf * assetValUSD;
+                            stocksMap[ticker].totalValueUSD += impliedValUSD;
+                            stocksMap[ticker].sources.push({
+                                etf: h.symbol,
+                                weight: meta.holdings[ticker],
+                                valueUSD: impliedValUSD
+                            });
+                        });
+                    }
+                });
+
+                return Object.values(stocksMap).map(stock => ({
+                    ...stock,
+                    percentage: (stock.totalValueUSD / totalPortfolioVal) * 100
+                })).sort((a, b) => b.totalValueUSD - a.totalValueUSD);
+            }, [holdings, totals.totalValueUSD, usdToHkd]);
+
+            // --- STRESS-TEST SCENARIO DEFINITIONS ---
+            const STRESS_TEST_CATALOG = {
+                techCrash: {
+                    name: "2000 Dot-Com Peak Crash Simulation",
+                    description: "Tech sectors collapse 70% while international and defensive assets decline moderately.",
+                    multipliers: { Technology: 0.30, Healthcare: 0.85, Communications: 0.40, Financials: 0.70, Consumer: 0.80, Industrials: 0.75, Other: 0.85 }
+                },
+                semiconductorShock: {
+                    name: "Global Semiconductor Shortage Crisis",
+                    description: "Semiconductor supply halts. SMH drops 45%, growth sectors fall 25%. Defensive global buffers retain weight.",
+                    multipliers: { Technology: 0.55, Healthcare: 0.95, Communications: 0.80, Financials: 0.90, Consumer: 0.85, Industrials: 0.70, Other: 0.90 }
+                },
+                tradeWar: {
+                    name: "Sino-US Trade Tariff War Shock",
+                    description: "Extreme trade blockades. China/HK assets drop 40%, international drops 15%, US tech drops 10%.",
+                    multipliers: { Technology: 0.90, Healthcare: 0.75, Communications: 0.85, Financials: 0.80, Consumer: 0.70, Industrials: 0.65, Other: 0.80 },
+                    regionalDrag: { ChinaHK: 0.60, US: 0.90, Europe: 0.85, AsiaPacific: 0.80 }
+                }
+            };
+
+            const stressTestResult = useMemo(() => {
+                if (!activeStressTest) return null;
+                const scenario = STRESS_TEST_CATALOG[activeStressTest];
+                if (!scenario) return null;
+
+                let postStressValueUSD = 0;
+
+                holdings.forEach(h => {
+                    const isHKD = h.currency === 'HKD';
+                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
+                    const valueUSD = h.shares * currentPriceUSD;
+
+                    const meta = ASSET_METADATA[h.symbol];
+                    let assetStressMultiplier = 1.0;
+
+                    if (meta && meta.sectors) {
+                        let weightedMultiplier = 0;
+                        Object.keys(meta.sectors).forEach(sec => {
+                            const sectorWeight = meta.sectors[sec] / 100;
+                            const sectorMultiplier = scenario.multipliers[sec] ?? 1.0;
+                            weightedMultiplier += sectorWeight * sectorMultiplier;
+                        });
+                        assetStressMultiplier = weightedMultiplier;
+                    }
+
+                    // Apply regional drag factor if scenario specifies it
+                    if (scenario.regionalDrag && meta && meta.geographic) {
+                        let regionalMultiplier = 0;
+                        Object.keys(meta.geographic).forEach(geo => {
+                            const geoWeight = meta.geographic[geo] / 100;
+                            const geoFactor = scenario.regionalDrag[geo] ?? 1.0;
+                            regionalMultiplier += geoWeight * geoFactor;
+                        });
+                        // Blend sector and regional drag factor
+                        assetStressMultiplier = (assetStressMultiplier + regionalMultiplier) / 2;
+                    }
+
+                    postStressValueUSD += valueUSD * assetStressMultiplier;
+                });
+
+                const lossUSD = totals.totalValueUSD - postStressValueUSD;
+                const lossPct = totals.totalValueUSD > 0 ? (lossUSD / totals.totalValueUSD) * 100 : 0;
+
+                return {
+                    postValueUSD: postStressValueUSD,
+                    postValueHKD: postStressValueUSD * usdToHkd,
+                    lossUSD,
+                    lossHKD: lossUSD * usdToHkd,
+                    lossPct
+                };
+            }, [activeStressTest, holdings, totals.totalValueUSD, usdToHkd]);
+
+            // --- DRIP CALCULATOR FORMULA WITH FX SYNC ---
+            const dripCompoundingProjection = useMemo(() => {
+                const years = projectorYears;
+                const rate = projectorCagr / 100;
+                
+                // Average Weighted yield
+                let totalDividendYieldUSD = 0;
+                holdings.forEach(h => {
+                    const isHKD = h.currency === 'HKD';
+                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
+                    const valueUSD = h.shares * currentPriceUSD;
+                    totalDividendYieldUSD += valueUSD * (h.estYield / 100);
+                });
+                
+                const averageYield = totals.totalValueUSD > 0 ? (totalDividendYieldUSD / totals.totalValueUSD) : 0;
+                
+                // Simple compounding projection over years (Quarterly compounding)
+                const n = 4; // Compound frequency
+                const principal = totals.totalValueUSD;
+                
+                // DRIP Reinvestment projection
+                let terminalValueDrip = principal;
+                let totalPayoutsEarnedDrip = 0;
+
+                for (let period = 1; period <= years * n; period++) {
+                    const divPayout = terminalValueDrip * (averageYield / n);
+                    const capitalGain = terminalValueDrip * (rate / n);
+                    totalPayoutsEarnedDrip += divPayout;
+                    
+                    if (isDripEnabled) {
+                        terminalValueDrip += divPayout + capitalGain;
+                    } else {
+                        terminalValueDrip += capitalGain;
+                    }
+                }
+
+                return {
+                    terminalValueUSD: terminalValueDrip,
+                    terminalValueHKD: terminalValueDrip * usdToHkd,
+                    averageYieldPct: averageYield * 100,
+                    totalPayoutsEarnedUSD: totalPayoutsEarnedDrip,
+                    totalPayoutsEarnedHKD: totalPayoutsEarnedDrip * usdToHkd
+                };
+            }, [holdings, totals.totalValueUSD, projectorYears, projectorCagr, isDripEnabled, usdToHkd]);
+
+            // --- TRAILING 12-MONTH (TTM) DIVIDEND LEDGER GENERATION ---
+            const ttmMonthlyIncome = useMemo(() => {
+                // Initialize clean monthly calendar mapping
+                let calendar = { Jan: 0, Feb: 0, Mar: 0, Apr: 0, May: 0, Jun: 0, Jul: 0, Aug: 0, Sep: 0, Oct: 0, Nov: 0, Dec: 0 };
+                
+                // Extract last 12 Month distributions based on claimed transactions
+                transactions.forEach(tx => {
+                    if (tx.type === 'DIVIDEND' && tx.date) {
+                        const monthIndex = new Date(tx.date).getMonth();
+                        const monthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][monthIndex];
+                        
+                        const isHKD = tx.currency === 'HKD';
+                        const valUSD = isHKD ? tx.amount / usdToHkd : tx.amount;
+                        calendar[monthName] += valUSD;
+                    }
+                });
+
+                return Object.keys(calendar).map(m => ({
+                    month: m,
+                    amountUSD: calendar[m],
+                    amountHKD: calendar[m] * usdToHkd
+                }));
+            }, [transactions, usdToHkd]);
+
+            // --- ATOMIZED OPERATIONS ---
+            const handleTargetWeightChange = (id, newWeight) => {
+                const val = Math.max(0, Math.min(100, parseFloat(newWeight) || 0));
+                const nextHoldings = holdings.map(h => h.id === id ? { ...h, targetWeight: val } : h);
+                setHoldings(nextHoldings);
+                saveToCloud(nextHoldings, transactions, claimedDividendsCash, unclaimedDividends);
+            };
+
+            const triggerPromptClaimDividend = (div) => {
+                setSelectedDivToClaim(div);
+                setDivCommissionType('FLAT');
+                setDivCommissionVal(div.currency === 'HKD' ? '15.00' : '1.99');
+                setIsClaimDivModalOpen(true);
+            };
+
+            const executeClaimDividend = (e) => {
                 e.preventDefault();
-                if (!txShares || !txPrice) return;
+                if (!selectedDivToClaim) return;
 
-                const shareCount = parseFloat(txShares);
-                const sharePrice = parseFloat(txPrice);
-                const commFee = parseFloat(txComm || 0);
+                const div = selectedDivToClaim;
+                const feeInput = parseFloat(divCommissionVal) || 0;
+                
+                let calculatedFee = 0;
+                if (divCommissionType === 'FLAT') {
+                    calculatedFee = feeInput;
+                } else {
+                    calculatedFee = div.amount * (feeInput / 100);
+                }
 
-                const updatedTx = [
-                    ...transactions,
-                    { symbol: txSymbol, type: txType, shares: shareCount, price: sharePrice, commission: commFee, date: new Date().toISOString().split('T')[0] }
-                ];
+                calculatedFee = Math.min(div.amount, calculatedFee);
 
-                // Calculate updated average cost bases matching allocations
-                const updatedHoldings = holdings.map(h => {
-                    if (h.symbol === txSymbol) {
-                        const newShares = txType === 'BUY' ? h.shares + shareCount : Math.max(0, h.shares - shareCount);
-                        return { ...h, shares: newShares };
+                const isHKD = div.currency === 'HKD';
+                const grossAmountUSD = isHKD ? div.amount / usdToHkd : div.amount;
+                const feeAmountUSD = isHKD ? calculatedFee / usdToHkd : calculatedFee;
+                
+                const netAmountUSD = Math.max(0, grossAmountUSD - feeAmountUSD);
+                const isDripModeActive = isDripEnabled;
+
+                let updatedHoldings = [...holdings];
+
+                if (isDripModeActive) {
+                    // AUTO DRIP EXECUTOR: Reinvest Net Dividend back into the same holding
+                    const targetIndex = holdings.findIndex(h => h.symbol === div.symbol);
+                    if (targetIndex > -1) {
+                        const targetAsset = holdings[targetIndex];
+                        const netAmountInNativeCurrency = isHKD ? div.amount - calculatedFee : netAmountUSD;
+                        const sharesToBuyFractional = netAmountInNativeCurrency / targetAsset.currentPrice;
+                        
+                        const updatedShares = targetAsset.shares + sharesToBuyFractional;
+                        
+                        // Recalculate average purchase price with commission/taxes subtracted
+                        const existingCostBasis = targetAsset.shares * targetAsset.avgBuyPrice;
+                        const reinvestCostBasis = sharesToBuyFractional * targetAsset.currentPrice;
+                        const updatedAvgBuyPrice = (existingCostBasis + reinvestCostBasis) / updatedShares;
+
+                        updatedHoldings[targetIndex] = {
+                            ...targetAsset,
+                            shares: parseFloat(updatedShares.toFixed(4)),
+                            avgBuyPrice: parseFloat(updatedAvgBuyPrice.toFixed(2))
+                        };
+                    }
+                } else {
+                    // Deposit Net payout to Off-Portfolio Cash Balance
+                    setClaimedDividendsCash(prev => prev + netAmountUSD);
+                }
+
+                // Update dividend notifications queue & log transaction record
+                const nextUnclaimed = unclaimedDividends.map(d => d.id === div.id ? { ...d, processed: true } : d);
+                setUnclaimedDividends(nextUnclaimed);
+                
+                const newTx = {
+                    id: `div-tx-${Date.now()}`,
+                    type: 'DIVIDEND',
+                    symbol: div.symbol,
+                    category: 'Dividend Cash',
+                    amount: div.amount,
+                    price: 1.00,
+                    commission: calculatedFee,
+                    currency: div.currency,
+                    date: new Date().toISOString().split('T')[0]
+                };
+
+                const nextTx = [newTx, ...transactions];
+                setTransactions(nextTx);
+                saveToCloud(updatedHoldings, nextTx, isDripModeActive ? claimedDividendsCash : (claimedDividendsCash + netAmountUSD), nextUnclaimed);
+
+                setIsClaimDivModalOpen(false);
+                setSelectedDivToClaim(null);
+            };
+
+            const handleAddAsset = (e) => {
+                e.preventDefault();
+                if (!newSymbol || !newName || !newShares || !newPrice) return;
+
+                const sharesNum = parseFloat(newShares);
+                const priceNum = parseFloat(newPrice);
+                const colors = ['#ec4899', '#f43f5e', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+                const existingIndex = holdings.findIndex(h => h.symbol.toUpperCase() === newSymbol.toUpperCase());
+                let nextHoldings = [...holdings];
+                
+                if (existingIndex > -1) {
+                    const existing = holdings[existingIndex];
+                    const updatedShares = existing.shares + sharesNum;
+                    const updatedAvg = ((existing.shares * existing.avgBuyPrice) + (sharesNum * priceNum)) / updatedShares;
+                    nextHoldings[existingIndex] = {
+                        ...existing,
+                        shares: updatedShares,
+                        avgBuyPrice: parseFloat(updatedAvg.toFixed(2)),
+                        currentPrice: priceNum
+                    };
+                } else {
+                    const newHolding = {
+                        id: Date.now().toString(),
+                        symbol: newSymbol.toUpperCase(),
+                        name: newName,
+                        category: newCategory,
+                        shares: sharesNum,
+                        avgBuyPrice: priceNum,
+                        currentPrice: priceNum,
+                        color: randomColor,
+                        targetWeight: 0,
+                        estYield: 1.20,
+                        lastDividendDate: 'N/A',
+                        dividendPerShare: 0.00,
+                        currency: newCurrency,
+                        expenseRatio: 0.15
+                    };
+                    nextHoldings.push(newHolding);
+                }
+
+                const nextTx = [{
+                    id: `tx-${Date.now()}`,
+                    type: 'BUY',
+                    symbol: newSymbol.toUpperCase(),
+                    category: newCategory,
+                    amount: sharesNum,
+                    price: priceNum,
+                    date: new Date().toISOString().split('T')[0],
+                    currency: newCurrency
+                }, ...transactions];
+
+                setHoldings(nextHoldings);
+                setTransactions(nextTx);
+                saveToCloud(nextHoldings, nextTx, claimedDividendsCash, unclaimedDividends);
+
+                setNewSymbol('');
+                setNewName('');
+                setNewShares('');
+                setNewPrice('');
+                setIsAddModalOpen(false);
+            };
+
+            const openBuySellModal = (asset) => {
+                setSelectedAssetForModal(asset);
+                setTradeAmount('');
+                setTradePrice(asset.currentPrice.toString());
+                setIsBuySellModalOpen(true);
+            };
+
+            const handleBuySellSubmit = (e) => {
+                e.preventDefault();
+                if (!selectedAssetForModal || !tradeAmount || !tradePrice) return;
+
+                const amountNum = parseFloat(tradeAmount);
+                const priceNum = parseFloat(tradePrice);
+                
+                let nextHoldings = holdings.map(h => {
+                    if (h.id === selectedAssetForModal.id) {
+                        if (tradeType === 'BUY') {
+                            const totalShares = h.shares + amountNum;
+                            const newAvg = ((h.shares * h.avgBuyPrice) + (amountNum * priceNum)) / totalShares;
+                            return { ...h, shares: totalShares, avgBuyPrice: parseFloat(newAvg.toFixed(2)), currentPrice: priceNum };
+                        } else {
+                            const totalShares = Math.max(0, h.shares - amountNum);
+                            return { ...h, shares: totalShares, currentPrice: priceNum };
+                        }
                     }
                     return h;
-                });
+                }).filter(h => h.shares > 0);
 
-                const docRef = sdk.doc(db, 'artifacts', 'portfolio-dashboard-main', 'users', user.uid, 'portfolioState', 'data');
-                await sdk.setDoc(docRef, { holdings: updatedHoldings, transactions: updatedTx, claimedDividendsCash }, { merge: true });
-                
-                setTxShares('');
-                setTxPrice('');
-                setTxComm('0');
-                alert("Transaction logged securely!");
+                const nextTx = [{
+                    id: `tx-${Date.now()}`,
+                    type: tradeType,
+                    symbol: selectedAssetForModal.symbol,
+                    category: selectedAssetForModal.category,
+                    amount: amountNum,
+                    price: priceNum,
+                    date: new Date().toISOString().split('T')[0],
+                    currency: selectedAssetForModal.currency
+                }, ...transactions];
+
+                setHoldings(nextHoldings);
+                setTransactions(nextTx);
+                saveToCloud(nextHoldings, nextTx, claimedDividendsCash, unclaimedDividends);
+
+                setIsBuySellModalOpen(false);
             };
 
-            const loginWithGoogle = async () => {
-                const provider = new sdk.GoogleAuthProvider();
-                try { await sdk.signInWithPopup(auth, provider); } catch (err) { console.error(err); }
+            const deleteHolding = (id) => {
+                const asset = holdings.find(h => h.id === id);
+                if (asset) {
+                    const nextHoldings = holdings.filter(h => h.id !== id);
+                    const nextTx = [{
+                        id: `tx-${Date.now()}`,
+                        type: 'LIQUIDATE',
+                        symbol: asset.symbol,
+                        category: asset.category,
+                        amount: asset.shares,
+                        price: asset.currentPrice,
+                        date: new Date().toISOString().split('T')[0],
+                        currency: asset.currency
+                    }, ...transactions];
+
+                    setHoldings(nextHoldings);
+                    setTransactions(nextTx);
+                    saveToCloud(nextHoldings, nextTx, claimedDividendsCash, unclaimedDividends);
+                }
             };
 
-            const logoutUser = () => sdk.signOut(auth);
+            // Copilot function
+            const callGemini = async (userMessage) => {
+                setIsAiLoading(true);
 
-            // Compute financial balance aggregates
-            const portfolioMetrics = useMemo(() => {
-                let totalUsdValue = 0;
-                let weightedFeeAccumulator = 0;
+                const formattedHoldings = holdings.map(h => {
+                    const isHKD = h.currency === 'HKD';
+                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
+                    const currentPct = totals.totalValueUSD > 0 ? ((h.shares * currentPriceUSD) / totals.totalValueUSD) * 100 : 0;
+                    return `- ${h.symbol}: Price: ${h.currentPrice} ${h.currency} | Weight: ${currentPct.toFixed(1)}% | Beta: ${(ASSET_METADATA[h.symbol] || {beta: 1.0}).beta}`;
+                }).join('\n');
 
-                const processed = holdings.map(h => {
-                    const nativePrice = h.currentPrice;
-                    const assetValueNative = h.shares * nativePrice;
-                    const assetValueUsd = h.currency === 'HKD' ? assetValueNative / fxRate : assetValueNative;
-                    
-                    totalUsdValue += assetValueUsd;
-                    weightedFeeAccumulator += assetValueUsd * (h.expenseRatio || 0);
+                const fullSystemPrompt = `${SYSTEM_PROMPT}\n\nCURRENT PORTFOLIO MATRIX:\n${formattedHoldings}\nTotal USD Value: $${totals.totalValueUSD.toFixed(2)}\nWeighted Portfolio Beta: ${totals.portfolioBeta.toFixed(3)}\nActive Exchange Rate: 1 USD = ${usdToHkd} HKD`;
 
-                    return { ...h, valueUsd: assetValueUsd, valueNative: assetValueNative };
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=`;
+
+                try {
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: userMessage }] }],
+                            systemInstruction: { parts: [{ text: fullSystemPrompt }] }
+                        })
+                    });
+                    const data = await response.json();
+                    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response received. Verify API services.";
+                    setMessages(prev => [...prev, { sender: 'assistant', text: replyText }]);
+                } catch (err) {
+                    setMessages(prev => [...prev, { sender: 'assistant', text: "Connection anomaly. Standalone environment has limited sandbox API routing." }]);
+                } finally {
+                    setIsAiLoading(false);
+                }
+            };
+
+            const handleSendMessage = (e) => {
+                e.preventDefault();
+                if (!copilotInput.trim()) return;
+                const msg = copilotInput;
+                setMessages(prev => [...prev, { sender: 'user', text: msg }]);
+                setCopilotInput('');
+                callGemini(msg);
+            };
+
+            const triggerPresetCopilotQuery = (queryType) => {
+                let queryText = '';
+                if (queryType === 'risk') {
+                    queryText = "Analyze the overall volatility, Beta score, and expected stress outcomes of my current stock allocation.";
+                } else if (queryType === 'rebalance') {
+                    queryText = "Generate a cost-effective rebalancing order taking into account dual currency conversion and standard board lot rounding rules.";
+                } else if (queryType === 'dividends') {
+                    queryText = "Critique my compounding yield. What is the impact of dividend tax drag on my 20-year DRIP projection?";
+                }
+                setMessages(prev => [...prev, { sender: 'user', text: queryText }]);
+                setActiveTab('copilot');
+                callGemini(queryText);
+            };
+
+            // Chart Logic
+            const chartPoints = useMemo(() => {
+                const pointsCount = timeframe === '1D' ? 12 : timeframe === '1W' ? 7 : timeframe === '1M' ? 15 : 30;
+                const seedValue = totals.totalValueUSD;
+                const volatility = timeframe === '1D' ? 0.005 : timeframe === '1W' ? 0.015 : timeframe === '1M' ? 0.04 : 0.09;
+                let current = seedValue * (1 - volatility * 0.5);
+                const points = [];
+                for (let i = 0; i < pointsCount; i++) {
+                    const progress = i / (pointsCount - 1);
+                    const wave = Math.sin(progress * Math.PI * 2) * (seedValue * volatility * 0.3);
+                    const trend = progress * (seedValue * (totals.gainPercentage > 0 ? 0.05 : -0.02));
+                    const value = current + wave + trend;
+                    let label = timeframe === '1D' ? `${Math.floor(9 + (i * 8)/pointsCount)}:00` : timeframe === '1W' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i % 7] : timeframe === '1M' ? `Day ${i+1}` : `M${Math.floor(i/2.5)+1}`;
+                    points.push({ label, value });
+                }
+                if (points.length > 0) points[points.length - 1].value = totals.totalValueUSD;
+                return points;
+            }, [totals.totalValueUSD, totals.gainPercentage, timeframe]);
+
+            const [hoveredPoint, setHoveredPoint] = useState(null);
+
+            // --- SVG PLOT GRAPH COORDINATES ---
+            const chartWidth = 600;
+            const chartHeight = 200;
+            const chartPadding = 35;
+            const coordinates = useMemo(() => {
+                if (chartPoints.length === 0) return [];
+                const minVal = Math.min(...chartPoints.map(p => p.value)) * 0.99;
+                const maxVal = Math.max(...chartPoints.map(p => p.value)) * 1.01;
+                const valRange = maxVal - minVal || 1;
+                return chartPoints.map((point, i) => {
+                    const x = chartPadding + (i / (chartPoints.length - 1)) * (chartWidth - chartPadding * 2);
+                    const y = chartHeight - chartPadding - ((point.value - minVal) / valRange) * (chartHeight - chartPadding * 2);
+                    return { x, y, value: point.value, label: point.label };
                 });
+            }, [chartPoints]);
 
-                const totalHkdValue = totalUsdValue * fxRate;
-                const finalWeightedExpense = totalUsdValue > 0 ? (weightedFeeAccumulator / totalUsdValue) : 0;
-                const annualFeeDragUsd = totalUsdValue * (finalWeightedExpense / 100);
+            const generatePath = () => {
+                if (coordinates.length === 0) return '';
+                return coordinates.reduce((path, p, i) => i === 0 ? `M ${p.x} ${p.y}` : `${path} L ${p.x} ${p.y}`, '');
+            };
 
-                return { processedHoldings: processed, totalUsdValue, totalHkdValue, finalWeightedExpense, annualFeeDragUsd };
-            }, [holdings, fxRate]);
+            const generateAreaPath = () => {
+                if (coordinates.length === 0) return '';
+                const path = generatePath();
+                const bottomY = chartHeight - chartPadding;
+                return `${path} L ${coordinates[coordinates.length-1].x} ${bottomY} L ${coordinates[0].x} ${bottomY} Z`;
+            };
 
-            if (authLoading) {
+            if (cloudStatus === 'unauthenticated') {
                 return (
-                    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-3">
-                        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Securing User Node Context...</p>
-                    </div>
-                );
-            }
-
-            if (!user) {
-                return (
-                    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-                        <div className="w-full max-w-md p-8 rounded-3xl border border-slate-800/80 bg-slate-900/60 backdrop-blur-xl text-center shadow-2xl">
-                            <div className="w-16 h-16 bg-gradient-to-tr from-indigo-500 to-violet-500 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6 shadow-xl shadow-indigo-500/10">📊</div>
-                            <h2 class="text-2xl font-extrabold tracking-tight">Folio<span className="text-indigo-400">AI</span> Console</h2>
-                            <p className="text-xs text-slate-400 mt-2 max-w-xs mx-auto leading-relaxed">Identity authorization required. Please authenticate to map your encrypted multi-currency portfolio database partition.</p>
-                            <button onClick={loginWithGoogle} className="w-full mt-8 bg-white text-slate-950 font-bold text-sm py-3 px-4 rounded-xl hover:bg-slate-100 transition-all flex items-center justify-center space-x-2 shadow-lg">
+                    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 text-slate-100">
+                        <div className="w-full max-w-md p-8 rounded-3xl border border-slate-800 bg-slate-900 text-center shadow-2xl animate-slide-in">
+                            <div className="bg-gradient-to-tr from-indigo-500 to-violet-500 w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-xl mx-auto mb-6">
+                                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            </div>
+                            <h1 className="text-2xl font-black tracking-tight mb-2">Secure Wealth Portal</h1>
+                            <p className="text-xs opacity-60 leading-relaxed max-w-xs mx-auto mb-8">
+                                Connect to your secure personal account. Your custom assets and targets are encrypted and tied to your Google identity.
+                            </p>
+                            <button 
+                                onClick={handleGoogleSignIn}
+                                className="w-full bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 font-extrabold text-sm py-3 px-4 rounded-xl shadow transition-all flex items-center justify-center space-x-2.5"
+                            >
+                                <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114A5.96 5.96 0 0 1 8.03 12.557a5.96 5.96 0 0 1 5.96-5.96c1.448 0 2.766.52 3.794 1.378l3.224-3.224c-1.996-1.858-4.57-3-7.018-3a10.16 10.16 0 0 0-10.16 10.16A10.16 10.16 0 0 0 13.99 22.36c5.542 0 10.02-4.542 10.02-10.02 0-.672-.054-1.343-.162-2.055H12.24z"/></svg>
                                 <span>Sign In with Google</span>
                             </button>
                         </div>
@@ -217,78 +1016,224 @@
             }
 
             return (
-                <div className="min-h-screen flex flex-col">
-                    {/* Header Controls */}
-                    <header className="border-b border-slate-800 bg-slate-900/80 sticky top-0 z-40 backdrop-blur-md px-6 h-16 flex items-center justify-between">
-                        <div className="flex items-center space-x-6">
-                            <span className="text-xl font-bold tracking-tight text-indigo-400">FolioAI Console</span>
-                            <nav className="flex space-x-1 text-sm font-semibold">
-                                <button onClick={() => setActiveTab('dashboard')} className={`px-3 py-1.5 rounded-lg transition-all ${activeTab === 'dashboard' ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200'}`}>Dashboard</button>
-                                <button onClick={() => setActiveTab('targets')} className={`px-3 py-1.5 rounded-lg transition-all ${activeTab === 'targets' ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200'}`}>Targets</button>
-                                <button onClick={() => setActiveTab('transactions')} className={`px-3 py-1.5 rounded-lg transition-all ${activeTab === 'transactions' ? 'bg-indigo-500/10 text-indigo-400' : 'text-slate-400 hover:text-slate-200'}`}>Transactions</button>
-                            </nav>
+                <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
+                    
+                    {/* Unclaimed Dividend Notification Banner */}
+                    {unclaimedDividends.some(d => !d.processed && !d.simulatedUpcoming) && (
+                        <div className="bg-gradient-to-r from-emerald-600 to-indigo-600 text-white font-semibold py-2 px-4 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-lg animate-pulse">
+                            <span>📢 Dividend Announcement! Click Claim to deposit in your Dividend Cash account.</span>
+                            <div className="flex items-center space-x-2">
+                                {unclaimedDividends.filter(d => !d.processed && !d.simulatedUpcoming).map(div => (
+                                    <button 
+                                        key={div.id}
+                                        onClick={() => triggerPromptClaimDividend(div)}
+                                        className="bg-slate-900/40 hover:bg-slate-950 text-emerald-300 hover:text-white px-3 py-1 rounded-lg text-xs font-bold transition-all border border-emerald-500/20"
+                                    >
+                                        Claim {div.currency === 'USD' ? '$' : 'HK$'}{div.amount.toFixed(2)} ({div.symbol})
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                        <div className="flex items-center space-x-4">
-                            <button onClick={syncMarketData} disabled={isSyncing} className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-xl font-medium transition-all">
-                                {isSyncing ? 'Syncing...' : '🔄 Sync Live Prices'}
-                            </button>
-                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{cloudStatus}</span>
-                            <button onClick={logoutUser} className="text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-1.5 rounded-xl transition-all">Sign Out</button>
+                    )}
+
+                    {/* Navigation Header */}
+                    <header className={`border-b ${isDarkMode ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-white/80'} sticky top-0 z-40 backdrop-blur-md`}>
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                <div className="bg-gradient-to-tr from-indigo-500 to-violet-500 w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg">
+                                    <span className="text-xl">📊</span>
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-bold tracking-tight">Folio<span className="text-indigo-400">AI</span></h1>
+                                    <p className="text-[10px] opacity-60 font-medium">USD / HKD Equity Platform</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center space-x-3">
+                                {lastPriceSync && (
+                                    <span className="text-[10px] font-semibold text-slate-400 hidden sm:inline">
+                                        Last Sync: {lastPriceSync} | Spot: 1 USD = {usdToHkd} HKD
+                                    </span>
+                                )}
+
+                                <button 
+                                    onClick={syncLiveMarketPrices}
+                                    className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center space-x-1"
+                                >
+                                    <span>🔄 Sync Live Prices &amp; Forex</span>
+                                </button>
+
+                                <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-lg border border-slate-800">
+                                    {isDarkMode ? '🌙' : '☀️'}
+                                </button>
+
+                                <button onClick={handleSignOut} className="bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-700 transition-all">Sign Out</button>
+
+                                <button onClick={() => setIsAddModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded-xl">
+                                    + Add Asset
+                                </button>
+                            </div>
                         </div>
                     </header>
 
-                    {/* Main Workspace Tabs */}
-                    <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+                    {/* Dashboard Wrapper */}
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                         
+                        {/* Upper Metric Widgets */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Net Equity Value</span>
+                                <div className="text-xl font-extrabold mt-1 text-indigo-400">
+                                    USD ${totals.totalValueUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                                <div className="text-sm font-semibold text-slate-400">
+                                    HKD ${totals.totalValueHKD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                                <p className={`text-[10px] mt-1.5 font-bold ${totals.totalGainUSD >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                    {totals.totalGainUSD >= 0 ? '▲ +' : '▼ '}USD {totals.totalGainUSD.toLocaleString()} ({totals.gainPercentage.toFixed(2)}%)
+                                </p>
+                            </div>
+
+                            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Weighted Expense Ratio</span>
+                                <div className="text-xl font-extrabold mt-1 text-amber-400">
+                                    {totals.weightedExpenseRatio.toFixed(3)}%
+                                </div>
+                                <div className="text-[10px] opacity-60 mt-1">
+                                    Silent Drag: 
+                                    <div className="font-semibold text-rose-400">USD ${totals.annualDragUSD.toLocaleString('en-US', { maximumFractionDigits: 2 })} / yr</div>
+                                    <div className="font-semibold text-rose-400/80">HKD ${totals.annualDragHKD.toLocaleString('en-US', { maximumFractionDigits: 2 })} / yr</div>
+                                </div>
+                            </div>
+
+                            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Claimed Dividend Cash</span>
+                                <div className="text-xl font-extrabold mt-1 text-emerald-400">
+                                    USD ${claimedDividendsCash.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                </div>
+                                <div className="text-xs font-semibold text-slate-400">
+                                    HKD ${(claimedDividendsCash * usdToHkd).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                </div>
+                                <p className="text-[10px] opacity-50 mt-1">Off-portfolio balance cash</p>
+                            </div>
+
+                            <div className="p-5 rounded-2xl border bg-gradient-to-br from-indigo-950/20 to-slate-900/40 border-slate-800">
+                                <span className="text-[10px] font-bold tracking-wider text-indigo-400 uppercase">AI Diagnostics</span>
+                                <div className="mt-2 flex flex-col space-y-1">
+                                    <button onClick={() => triggerPresetCopilotQuery('risk')} className="text-left text-[11px] font-semibold px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">📊 Volatility Beta</button>
+                                    <button onClick={() => triggerPresetCopilotQuery('rebalance')} className="text-left text-[11px] font-semibold px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">⚖️ Round Board-Lots</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Navigation Tabs */}
+                        <div className="flex border-b border-slate-800 mb-6 space-x-1">
+                            <button onClick={() => setActiveTab('dashboard')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'dashboard' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>📊 Dashboard</button>
+                            <button onClick={() => setActiveTab('exposure')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'exposure' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>🌐 Overlaps &amp; Exposure</button>
+                            <button onClick={() => setActiveTab('holdings')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'holdings' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>⚙️ Targets &amp; Weight Deltas</button>
+                            <button onClick={() => setActiveTab('dividends')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'dividends' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>💰 Dividends &amp; DRIP Projections</button>
+                            <button onClick={() => setActiveTab('transactions')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'transactions' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>📜 Transactions</button>
+                            <button onClick={() => setActiveTab('copilot')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'copilot' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>🤖 AI Copilot</button>
+                        </div>
+
+                        {/* ==============================================================================
+                            TAB: MAIN DASHBOARD PANEL
+                            ============================================================================== */}
                         {activeTab === 'dashboard' && (
-                            <div className="space-y-6">
-                                {/* Main Multi-Currency Aggregator Cards */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur-md shadow-xl">
-                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Net Equity Value</p>
-                                        <p className="text-3xl font-extrabold text-indigo-400 mt-2">${portfolioMetrics.totalUsdValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span className="text-xs font-medium text-slate-500">USD</span></p>
-                                        <p className="text-xl font-bold text-slate-300 mt-1">HK${portfolioMetrics.totalHkdValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} <span className="text-xs font-medium text-slate-500">HKD</span></p>
-                                    </div>
-                                    <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur-md shadow-xl">
-                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Weighted Expense Ratio</p>
-                                        <p className="text-3xl font-extrabold text-amber-400 mt-2">{portfolioMetrics.finalWeightedExpense.toFixed(3)}%</p>
-                                        <p className="text-xs text-slate-500 mt-1">Industry standard diversified benchmark target allocation baseline</p>
-                                    </div>
-                                    <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 backdrop-blur-md shadow-xl">
-                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Silent Fee Drag (Annual)</p>
-                                        <p className="text-2xl font-bold text-rose-400 mt-2">-${portfolioMetrics.annualFeeDragUsd.toLocaleString(undefined, {maximumFractionDigits: 2})} <span className="text-xs font-medium text-slate-500">USD</span></p>
-                                        <p className="text-lg font-semibold text-slate-300">-HK${(portfolioMetrics.annualFeeDragUsd * fxRate).toLocaleString(undefined, {maximumFractionDigits: 2})} <span className="text-xs font-medium text-slate-500">HKD</span></p>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div className={`lg:col-span-2 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                    <h3 className="font-bold text-lg">Value Growth Pathway (USD Base)</h3>
+                                    <div className="relative w-full h-48 mt-4">
+                                        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full overflow-visible">
+                                            <path d={generateAreaPath()} fill="rgba(99,102,241,0.15)" />
+                                            <path d={generatePath()} fill="none" stroke="#6366f1" strokeWidth="3" />
+                                        </svg>
                                     </div>
                                 </div>
 
-                                {/* Asset Directory Directory */}
-                                <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/20 overflow-hidden">
-                                    <h3 className="text-base font-bold mb-4">Native Asset Allocation Ledger</h3>
+                                <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                    <h3 className="font-bold text-lg mb-4">Diversification Breakdown</h3>
+                                    <div className="space-y-3">
+                                        {holdings.map(h => {
+                                            const isHKD = h.currency === 'HKD';
+                                            const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
+                                            const weight = totals.totalValueUSD > 0 ? ((h.shares * currentPriceUSD) / totals.totalValueUSD) * 100 : 0;
+                                            return (
+                                                <div key={h.id} className="flex items-center justify-between text-xs font-semibold">
+                                                    <span className="flex items-center space-x-2">
+                                                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: h.color }}></span>
+                                                        <span>{h.symbol} <span className="opacity-40">({h.currency})</span></span>
+                                                    </span>
+                                                    <span>{weight.toFixed(1)}%</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className={`lg:col-span-3 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="font-bold text-lg">Open Allocation Positions</h3>
+                                        <div className="text-xs opacity-60">Spot Exchange Rate: 1 USD = {usdToHkd} HKD</div>
+                                    </div>
                                     <div className="overflow-x-auto">
-                                        <table className="w-full text-left text-sm">
+                                        <table className="w-full text-left text-xs sm:text-sm">
                                             <thead>
-                                                <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider font-semibold">
-                                                    <th className="pb-3">Asset</th>
-                                                    <th className="pb-3">Shares</th>
-                                                    <th className="pb-3">Market Price</th>
-                                                    <th className="pb-3">Value (USD)</th>
-                                                    <th className="pb-3">Value (HKD)</th>
+                                                <tr className="border-b border-slate-800 opacity-60">
+                                                    <th className="py-2.5 px-2">Asset</th>
+                                                    <th className="py-2.5 px-2 text-right">Shares</th>
+                                                    <th className="py-2.5 px-2 text-right">Price (Native)</th>
+                                                    <th className="py-2.5 px-2 text-right">Market Value (USD / HKD)</th>
+                                                    <th className="py-2.5 px-2 text-right">Current Weight</th>
+                                                    <th className="py-2.5 px-2 text-right">Target Weight</th>
+                                                    <th className="py-2.5 px-2 text-right">Action Cash Gap</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-slate-800/60">
-                                                {portfolioMetrics.processedHoldings.map(h => (
-                                                    <tr key={h.id} className="hover:bg-slate-900/40 transition-all">
-                                                        <td className="py-3.5 font-bold flex items-center space-x-2">
-                                                            <span className="w-2 h-2 rounded-full" style={{backgroundColor: h.color}}></span>
-                                                            <span>{h.symbol}</span>
-                                                            <span className="text-xs font-medium text-slate-500 font-normal hidden md:inline"> - {h.name}</span>
-                                                        </td>
-                                                        <td className="py-3.5 font-mono">{h.shares.toLocaleString()}</td>
-                                                        <td className="py-3.5 font-mono text-slate-300">{h.currency === 'HKD' ? 'HK$' : '$'}{h.currentPrice.toFixed(2)}</td>
-                                                        <td className="py-3.5 font-mono text-slate-200">${h.valueUsd.toLocaleString(undefined, {maximumFractionDigits:2})}</td>
-                                                        <td className="py-3.5 font-mono text-slate-400">HK${h.valueNative.toLocaleString(undefined, {maximumFractionDigits:2})}</td>
-                                                    </tr>
-                                                ))}
+                                            <tbody>
+                                                {holdings.map(h => {
+                                                    const isHKD = h.currency === 'HKD';
+                                                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
+                                                    
+                                                    const valUSD = h.shares * currentPriceUSD;
+                                                    const valHKD = valUSD * usdToHkd;
+
+                                                    const curW = totals.totalValueUSD > 0 ? (valUSD / totals.totalValueUSD) * 100 : 0;
+                                                    const tarValUSD = (h.targetWeight / 100) * totals.totalValueUSD;
+                                                    const cashG_USD = tarValUSD - valUSD;
+                                                    const cashG_HKD = cashG_USD * usdToHkd;
+
+                                                    return (
+                                                        <tr key={h.id} className="hover:bg-slate-800/10 border-b border-slate-800/40">
+                                                            <td className="py-3 px-2 font-bold">
+                                                                {h.symbol} 
+                                                                <span className="text-[10px] opacity-40 block">{h.name}</span>
+                                                            </td>
+                                                            <td className="py-3 px-2 text-right">{h.shares.toLocaleString()}</td>
+                                                            <td className="py-3 px-2 text-right font-medium">
+                                                                {h.currentPrice.toFixed(2)} <span className="text-[10px] opacity-50">{h.currency}</span>
+                                                            </td>
+                                                            <td className="py-3 px-2 text-right">
+                                                                <div className="font-extrabold text-indigo-400">${valUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] font-normal opacity-60">USD</span></div>
+                                                                <div className="text-xs text-slate-400">${valHKD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[9px] opacity-60">HKD</span></div>
+                                                            </td>
+                                                            <td className="py-3 px-2 text-right font-semibold">{curW.toFixed(1)}%</td>
+                                                            <td className="py-3 px-2 text-right">{h.targetWeight}%</td>
+                                                            <td className={`py-3 px-2 text-right font-bold ${cashG_USD >= 10 ? 'text-emerald-400' : cashG_USD <= -10 ? 'text-rose-400' : 'text-slate-500'}`}>
+                                                                {cashG_USD >= 10 ? (
+                                                                    <div>
+                                                                        <div>BUY ${Math.round(cashG_USD).toLocaleString()} USD</div>
+                                                                        <div className="text-xs font-normal opacity-80">(${Math.round(cashG_HKD).toLocaleString()} HKD)</div>
+                                                                    </div>
+                                                                ) : cashG_USD <= -10 ? (
+                                                                    <div>
+                                                                        <div>SELL ${Math.abs(Math.round(cashG_USD)).toLocaleString()} USD</div>
+                                                                        <div className="text-xs font-normal opacity-80">(${Math.abs(Math.round(cashG_HKD)).toLocaleString()} HKD)</div>
+                                                                    </div>
+                                                                ) : 'MATCHED'}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                     </div>
@@ -296,92 +1241,673 @@
                             </div>
                         )}
 
-                        {activeTab === 'targets' && (
-                            <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/20">
-                                <h3 className="text-base font-bold mb-2">Target Alignment Engine</h3>
-                                <p className="text-xs text-slate-400 mb-6">Enforces rebalance delta instructions based on model capital allocations rounded to board lot boundaries.</p>
-                                <div className="space-y-4">
-                                    {portfolioMetrics.processedHoldings.map(h => {
-                                        const actualPct = portfolioMetrics.totalUsdValue > 0 ? (h.valueUsd / portfolioMetrics.totalUsdValue) * 100 : 0;
-                                        return (
-                                            <div key={h.id} className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
-                                                <div>
-                                                    <span className="font-bold">{h.symbol}</span>
-                                                    <div className="text-xs text-slate-400 mt-1">Target Weight: {h.targetWeight}% | Actual: {actualPct.toFixed(1)}%</div>
-                                                </div>
-                                                <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${actualPct >= h.targetWeight ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                                                    {(actualPct - h.targetWeight).toFixed(1)}% Deviation
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'transactions' && (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/40">
-                                    <h3 className="text-base font-bold mb-4">Log New Entry Ticket</h3>
-                                    <form onSubmit={commitTransaction} className="space-y-4 text-sm">
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Asset Symbol</label>
-                                            <select value={txSymbol} onChange={e => setTxSymbol(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200">
-                                                {holdings.map(h => <option key={h.id} value={h.symbol}>{h.symbol} ({h.currency})</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Action Direction</label>
-                                            <div className="flex space-x-2">
-                                                <button type="button" onClick={() => setTxType('BUY')} className={`flex-1 py-2 rounded-xl border text-xs font-bold transition-all ${txType === 'BUY' ? 'bg-indigo-500 border-indigo-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'}`}>BUY</button>
-                                                <button type="button" onClick={() => setTxType('SELL')} className={`flex-1 py-2 rounded-xl border text-xs font-bold transition-all ${txType === 'SELL' ? 'bg-rose-500 border-rose-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'}`}>SELL</button>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Shares Count</label>
-                                                <input type="number" step="any" value={txShares} onChange={e => setTxShares(e.target.value)} placeholder="0.00" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono text-slate-200" />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Price per Share</label>
-                                                <input type="number" step="any" value={txPrice} onChange={e => setTxPrice(e.target.value)} placeholder="0.00" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono text-slate-200" />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Brokerage Commission Fee</label>
-                                            <input type="number" step="any" value={txComm} onChange={e => setTxComm(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 font-mono text-slate-200" />
-                                        </div>
-                                        <button type="submit" className="w-full bg-indigo-500 hover:bg-indigo-600 font-bold py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-500/10">Commit Order Ledger</button>
-                                    </form>
-                                </div>
-                                <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/20 md:col-span-2">
-                                    <h3 className="text-base font-bold mb-4">Historical Operation Logs</h3>
-                                    <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                                        {transactions.length === 0 ? (
-                                            <p className="text-xs text-slate-500 italic p-4 text-center">No transactions logged to this user profile context yet.</p>
-                                        ) : (
-                                            transactions.slice().reverse().map((t, idx) => (
-                                                <div key={idx} className="p-3 bg-slate-900/60 border border-slate-800/60 rounded-xl flex items-center justify-between font-mono text-xs">
-                                                    <div>
-                                                        <span className={`font-bold uppercase tracking-wider px-1.5 py-0.5 rounded text-[10px] mr-2 ${t.type === 'BUY' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-rose-500/10 text-rose-400'}`}>{t.type}</span>
-                                                        <span className="text-slate-200 font-bold">{t.symbol}</span>
-                                                        <span className="text-slate-500 ml-2">({t.shares} shares @ ${t.price.toFixed(2)})</span>
+                        {/* ==============================================================================
+                            TAB: EXPOSURE & OVERLAPS HEATMAPS (Dual Currency Enabled)
+                            ============================================================================== */}
+                        {activeTab === 'exposure' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                
+                                {/* GEOGRAPHIC & SECTOR LOOK-THROUGH */}
+                                <div className="space-y-6">
+                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                        <h3 className="font-bold text-base mb-1">True Geographic Exposure Heatmap</h3>
+                                        <p className="text-[11px] opacity-50 mb-4">Calculated by aggregate country allocations of underlying index funds</p>
+                                        
+                                        <div className="space-y-4">
+                                            {geographicExposure.map(geo => (
+                                                <div key={geo.name} className="space-y-1">
+                                                    <div className="flex items-center justify-between text-xs font-semibold">
+                                                        <span className="opacity-80">{geo.name}</span>
+                                                        <span className="text-indigo-400 font-bold">
+                                                            {geo.percentage.toFixed(1)}% <span className="text-slate-500 font-normal ml-1">(USD: ${Math.round(geo.valueUSD).toLocaleString()})</span>
+                                                        </span>
                                                     </div>
-                                                    <span className="text-slate-400">Comm: ${t.commission.toFixed(2)}</span>
+                                                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                                        <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${geo.percentage}%` }}></div>
+                                                    </div>
                                                 </div>
-                                            ))
-                                        )}
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                        <h3 className="font-bold text-base mb-1">True Sector Exposure Tracker</h3>
+                                        <p className="text-[11px] opacity-50 mb-4">Aggregate sectors looking through standard ETF barriers</p>
+                                        
+                                        <div className="space-y-4">
+                                            {sectorExposure.map(sec => (
+                                                <div key={sec.name} className="space-y-1">
+                                                    <div className="flex items-center justify-between text-xs font-semibold">
+                                                        <span className="opacity-80">{sec.name}</span>
+                                                        <span className="text-emerald-400 font-bold">
+                                                            {sec.percentage.toFixed(1)}% <span className="text-slate-500 font-normal ml-1">(USD: ${Math.round(sec.valueUSD).toLocaleString()})</span>
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${sec.percentage}%` }}></div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
+
+                                {/* ASSET OVERLAPS MATRIX & STRESS TESTS */}
+                                <div className="space-y-6">
+                                    
+                                    {/* STRESS TESTING BOARD */}
+                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800 border-dashed' : 'bg-white border-slate-200 shadow-sm'}`}>
+                                        <h3 className="font-extrabold text-base mb-1 text-indigo-400">Macro Stress Testing Deck</h3>
+                                        <p className="text-[11px] opacity-60 mb-4">Simulate catastrophic global events on your look-through equity concentrations</p>
+                                        
+                                        <div className="grid grid-cols-3 gap-2 mb-4">
+                                            {Object.keys(STRESS_TEST_CATALOG).map(key => (
+                                                <button 
+                                                    key={key}
+                                                    onClick={() => setActiveStressTest(activeStressTest === key ? null : key)}
+                                                    className={`p-3 rounded-xl border text-left transition-all ${
+                                                        activeStressTest === key 
+                                                        ? 'bg-rose-950/40 border-rose-500 text-rose-300' 
+                                                        : 'bg-slate-900/20 border-slate-800 hover:bg-slate-900/60'
+                                                    }`}
+                                                >
+                                                    <div className="text-xs font-bold block">{STRESS_TEST_CATALOG[key].name}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {stressTestResult ? (
+                                            <div className="p-4 rounded-xl bg-rose-950/20 border border-rose-500/20 space-y-2 animate-slide-in">
+                                                <div className="text-xs text-rose-300 font-bold uppercase tracking-wider">Estimated Drawdown Impact</div>
+                                                <div className="flex justify-between text-xs font-bold">
+                                                    <span>Portfolio Value loss:</span>
+                                                    <span className="text-rose-400">- {stressTestResult.lossPct.toFixed(2)}%</span>
+                                                </div>
+                                                <div className="flex justify-between text-xs">
+                                                    <span>Post-Crisis Value (USD):</span>
+                                                    <span className="font-extrabold">${Math.round(stressTestResult.postValueUSD).toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex justify-between text-xs">
+                                                    <span>Post-Crisis Value (HKD):</span>
+                                                    <span className="font-semibold">${Math.round(stressTestResult.postValueHKD).toLocaleString()}</span>
+                                                </div>
+                                                <p className="text-[10px] opacity-60 pt-1 border-t border-rose-500/10 italic">
+                                                    {STRESS_TEST_CATALOG[activeStressTest].description}
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="text-center p-6 text-xs opacity-50 border border-dashed border-slate-800 rounded-xl">
+                                                Select a macro scenario above to estimate your drawdown risk.
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* HOLDINGS OVERLAPS */}
+                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                        <h3 className="font-bold text-base mb-1">Implied Stock Holdings &amp; Overlaps</h3>
+                                        <p className="text-[11px] opacity-50 mb-4">Calculated cash ownership of top underlying corporate holdings</p>
+
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left text-xs">
+                                                <thead>
+                                                    <tr className="border-b border-slate-800 opacity-60">
+                                                        <th className="py-2">Stock</th>
+                                                        <th className="py-2">Source Funds</th>
+                                                        <th className="py-2 text-right">Implied Cash Exposure</th>
+                                                        <th className="py-2 text-right">Total Weight</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-800/30">
+                                                    {overlaps.map(stock => (
+                                                        <tr key={stock.symbol} className="hover:bg-slate-800/10">
+                                                            <td className="py-2.5 font-bold text-indigo-400">{stock.symbol}</td>
+                                                            <td className="py-2.5">
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {stock.sources.map(src => (
+                                                                        <span key={src.etf} className="bg-slate-800 text-slate-300 text-[9px] px-1.5 py-0.5 rounded" title={`${src.weight}% allocation`}>
+                                                                            {src.etf} ({src.weight}%)
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </td>
+                                                            <td className="py-2.5 text-right font-extrabold text-emerald-400">
+                                                                <div>${Math.round(stock.totalValueUSD).toLocaleString()} USD</div>
+                                                                <div className="text-[10px] font-normal text-slate-400">${Math.round(stock.totalValueUSD * usdToHkd).toLocaleString()} HKD</div>
+                                                            </td>
+                                                            <td className="py-2.5 text-right font-bold opacity-80">
+                                                                {stock.percentage.toFixed(2)}%
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                </div>
+
                             </div>
                         )}
 
-                    </main>
+                        {/* ==============================================================================
+                            TAB: TARGET SETTINGS MATRIX
+                            ============================================================================== */}
+                        {activeTab === 'holdings' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                
+                                {/* REBALANCE DELTAS SETTINGS */}
+                                <div className={`lg:col-span-2 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                    <h3 className="font-bold text-lg mb-4">Target Matrix Settings</h3>
+                                    <div className="space-y-4">
+                                        {holdings.map(h => (
+                                            <div key={h.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-800/20 border border-slate-800/40">
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold">{h.symbol}</span>
+                                                    <span className="text-[10px] opacity-50">Expense Fee: {h.expenseRatio}% | Trading in {h.currency}</span>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <input 
+                                                        type="number" 
+                                                        min="0" 
+                                                        max="100" 
+                                                        value={h.targetWeight} 
+                                                        onChange={(e) => handleTargetWeightChange(h.id, e.target.value)}
+                                                        className="w-16 text-center px-1 py-1 rounded font-bold bg-slate-800 border border-slate-700 text-white"
+                                                    />
+                                                    <span className="font-bold text-xs">% target weight</span>
+                                                    <button onClick={() => deleteHolding(h.id)} className="text-rose-500 ml-2 hover:bg-rose-500/10 p-1.5 rounded" title="Delete position">
+                                                        🗑️
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* LOT-SIZED broker ticket generator (ADVANCED UPGRADE 1) */}
+                                <div className={`p-6 rounded-2xl border bg-slate-900/30 border-slate-800 h-fit space-y-4`}>
+                                    <div>
+                                        <h3 className="font-extrabold text-base text-indigo-400 mb-1">Lot-Sized Buy/Sell Instructions</h3>
+                                        <p className="text-[11px] opacity-60">Calculates precise transactions rounded automatically to standard HK Board Lots (100 or 500 lots) and whole US shares.</p>
+                                    </div>
+
+                                    <div className="space-y-3 pt-2">
+                                        {holdings.map(h => {
+                                            const isHKD = h.currency === 'HKD';
+                                            const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
+                                            const assetValUSD = h.shares * currentPriceUSD;
+                                            const targetValueUSD = (h.targetWeight / 100) * totals.totalValueUSD;
+                                            const cashGapUSD = targetValueUSD - assetValUSD;
+
+                                            const meta = ASSET_METADATA[h.symbol] || { lotSize: 1 };
+                                            const sharesNeeded = cashGapUSD / currentPriceUSD;
+
+                                            // Board lot rounding rules
+                                            let tradeQty = 0;
+                                            if (meta.lotSize > 1) {
+                                                // Hong Kong Stock board-lot rounding
+                                                const rawLots = Math.round(sharesNeeded / meta.lotSize);
+                                                tradeQty = rawLots * meta.lotSize;
+                                            } else {
+                                                // Standard US decimal/whole rounded shares
+                                                tradeQty = Math.round(sharesNeeded);
+                                            }
+
+                                            if (Math.abs(tradeQty) === 0) return null;
+
+                                            return (
+                                                <div key={h.symbol} className="p-3 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center justify-between text-xs font-semibold">
+                                                    <div>
+                                                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${tradeQty > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                                                            {tradeQty > 0 ? 'BUY' : 'SELL'}
+                                                        </span>
+                                                        <span className="ml-2 font-bold">{h.symbol}</span>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="block font-black text-indigo-400">{Math.abs(tradeQty)} units</span>
+                                                        <span className="text-[10px] opacity-50 block">Lot Multiplier: {meta.lotSize}</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                            </div>
+                        )}
+
+                        {/* ==============================================================================
+                            TAB: DIVIDENDS & DYNAMIC DRIP COMPOUNDING CALCULATOR
+                            ============================================================================== */}
+                        {activeTab === 'dividends' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                                
+                                {/* DRIP PROJECTION CALCULATOR PARAMETERS */}
+                                <div className="lg:col-span-4 p-6 rounded-2xl border bg-slate-900/50 border-slate-800 h-fit space-y-6">
+                                    <div>
+                                        <h3 className="font-bold text-base text-indigo-400 mb-1">Projection Sandbox</h3>
+                                        <p className="text-[11px] opacity-50">Model compounding and broker collection commission effects over time</p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] uppercase font-bold tracking-wider opacity-60">Reinvestment Strategy</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button 
+                                                onClick={() => setIsDripEnabled(false)} 
+                                                className={`py-2 rounded-xl text-xs font-bold transition-all border ${!isDripEnabled ? 'bg-slate-800 text-amber-400 border-amber-500' : 'border-slate-800 opacity-60'}`}
+                                            >
+                                                💵 Cash Out
+                                            </button>
+                                            <button 
+                                                onClick={() => setIsDripEnabled(true)} 
+                                                className={`py-2 rounded-xl text-xs font-bold transition-all border ${isDripEnabled ? 'bg-indigo-950/40 text-emerald-400 border-emerald-500' : 'border-slate-800 opacity-60'}`}
+                                            >
+                                                🔄 DRIP Reinvest
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <div className="flex justify-between text-xs mb-1">
+                                                <span className="opacity-75 font-semibold">Annual Capital CAGR</span>
+                                                <span className="text-indigo-400 font-bold">{projectorCagr}%</span>
+                                            </div>
+                                            <input 
+                                                type="range" min="0" max="15" step="0.5" 
+                                                value={projectorCagr} 
+                                                onChange={(e) => setProjectorCagr(parseFloat(e.target.value))}
+                                                className="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer" 
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <div className="flex justify-between text-xs mb-1">
+                                                <span className="opacity-75 font-semibold">Timeline Span</span>
+                                                <span className="text-indigo-400 font-bold">{projectorYears} Years</span>
+                                            </div>
+                                            <input 
+                                                type="range" min="1" max="30" step="1" 
+                                                value={projectorYears} 
+                                                onChange={(e) => setProjectorYears(parseInt(e.target.value))}
+                                                className="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer" 
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-slate-800/80 space-y-2 text-xs">
+                                        <div className="flex justify-between">
+                                            <span className="opacity-60">Implied Weighted Yield:</span>
+                                            <span className="font-bold text-emerald-400">{dripCompoundingProjection.averageYieldPct.toFixed(2)}%</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="opacity-60">Projected Dividends Cash:</span>
+                                            <span className="font-semibold text-slate-300">${Math.round(dripCompoundingProjection.totalPayoutsEarnedUSD).toLocaleString()} USD</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* DRIP PROJECTION OUTPUT CARDS & TTM DIVIDEND CHART */}
+                                <div className="lg:col-span-8 space-y-6">
+                                    
+                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                        <h3 className="font-bold text-lg mb-4">Projected Compounding Performance</h3>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="p-4 rounded-xl bg-indigo-950/20 border border-indigo-500/10">
+                                                <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-400 block">Scenario Terminal value</span>
+                                                <span className="text-xl font-extrabold text-white block">USD ${dripCompoundingProjection.terminalValueUSD.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
+                                                <span className="text-sm font-semibold text-slate-400">HKD ${dripCompoundingProjection.terminalValueHKD.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
+                                            </div>
+
+                                            <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800">
+                                                <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 block">Cumulative Payout Yield</span>
+                                                <span className="text-xl font-extrabold text-white block">USD ${dripCompoundingProjection.totalPayoutsEarnedUSD.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
+                                                <span className="text-sm font-semibold text-slate-400">HKD ${dripCompoundingProjection.totalPayoutsEarnedHKD.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* TRAILING 12-MONTH VISUAL HISTOGRAM CHART */}
+                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                        <h3 className="font-bold text-lg mb-1">Trailing 12-Month (TTM) Dividend Ledger</h3>
+                                        <p className="text-[11px] opacity-60 mb-6">Visual monthly trajectory of claimed transaction payouts</p>
+                                        
+                                        <div className="flex items-end justify-between h-32 pt-2 border-b border-slate-800 px-2">
+                                            {ttmMonthlyIncome.map(bar => {
+                                                const maxVal = Math.max(...ttmMonthlyIncome.map(b => b.amountUSD)) || 1;
+                                                const percentHeight = (bar.amountUSD / maxVal) * 85;
+
+                                                return (
+                                                    <div key={bar.month} className="flex flex-col items-center flex-1 group">
+                                                        <div className="text-[9px] text-emerald-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity mb-1">
+                                                            ${Math.round(bar.amountUSD)}
+                                                        </div>
+                                                        <div 
+                                                            className="w-6 bg-emerald-500/80 rounded-t hover:bg-emerald-400 transition-all cursor-pointer"
+                                                            style={{ height: `${Math.max(4, percentHeight)}px` }}
+                                                            title={`USD: $${bar.amountUSD.toFixed(2)} | HKD: $${bar.amountHKD.toFixed(2)}`}
+                                                        ></div>
+                                                        <span className="text-[10px] opacity-50 font-bold mt-2">{bar.month}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                        <h3 className="font-bold text-lg mb-4">Historical Income Log</h3>
+                                        <div className="space-y-3">
+                                            {unclaimedDividends.map((div, idx) => (
+                                                <div key={idx} className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 flex items-center justify-between">
+                                                    <div>
+                                                        <span className="font-bold text-sm block">{div.symbol} Cash Flow</span>
+                                                        <span className="text-[10px] opacity-60 block">Declared Ex-Date: {div.date}</span>
+                                                    </div>
+                                                    <div className="text-right flex items-center space-x-3">
+                                                        <div>
+                                                            <span className="font-extrabold text-emerald-400 block">{div.currency === 'USD' ? '$' : 'HK$'}{div.amount.toFixed(2)}</span>
+                                                            <span className="text-[10px] text-slate-400 block">
+                                                                ({div.currency === 'USD' ? 'HK$' : '$'}{(div.currency === 'USD' ? div.amount * usdToHkd : div.amount / usdToHkd).toFixed(2)})
+                                                            </span>
+                                                        </div>
+                                                        {div.processed ? (
+                                                            <span className="text-xs font-semibold text-slate-500">PAID</span>
+                                                        ) : (
+                                                            <button onClick={() => triggerPromptClaimDividend(div)} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold px-2.5 py-1 rounded">Claim</button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                            </div>
+                        )}
+
+                        {/* ==============================================================================
+                            TAB: TRANSACTIONS LOG
+                            ============================================================================== */}
+                        {activeTab === 'transactions' && (
+                            <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                                <h3 className="font-bold text-lg mb-1">Transaction History Ledger</h3>
+                                <p className="text-xs opacity-60 mb-4">Log of portfolio events, buy/sell executions, and dividend captures</p>
+
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-xs sm:text-sm">
+                                        <thead>
+                                            <tr className="border-b border-slate-800 opacity-60 font-semibold text-[10px] tracking-wider uppercase">
+                                                <th className="py-3 px-2">TX ID</th>
+                                                <th className="py-3 px-2">Timestamp</th>
+                                                <th className="py-3 px-2">Type</th>
+                                                <th className="py-3 px-2">Asset Code</th>
+                                                <th className="py-3 px-2 text-right">Shares/Qty</th>
+                                                <th className="py-3 px-2 text-right">Price (Native)</th>
+                                                <th className="py-3 px-2 text-right">Total Cost / Capture</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-800/30">
+                                            {transactions.map((tx, i) => {
+                                                const totalCost = tx.amount * tx.price;
+                                                return (
+                                                    <tr key={i} className="hover:bg-slate-800/10 transition-all">
+                                                        <td className="py-3 px-2 font-mono opacity-40">{tx.id}</td>
+                                                        <td className="py-3 px-2 opacity-80">{tx.date}</td>
+                                                        <td className="py-3 px-2">
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                                                tx.type === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : 
+                                                                tx.type === 'SELL' ? 'bg-rose-500/10 text-rose-400' : 'bg-indigo-500/10 text-indigo-400'
+                                                            }`}>
+                                                                {tx.type}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3 px-2 font-bold text-indigo-400">{tx.symbol}</td>
+                                                        <td className="py-3 px-2 text-right font-semibold">{tx.amount.toLocaleString()}</td>
+                                                        <td className="py-3 px-2 text-right font-medium">{tx.currency === 'USD' ? '$' : 'HK$'}{tx.price.toFixed(2)}</td>
+                                                        <td className={`py-3 px-2 text-right font-bold ${tx.type === 'DIVIDEND' ? 'text-emerald-400' : 'text-slate-100'}`}>
+                                                            {tx.currency === 'USD' ? '$' : 'HK$'}{totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ==============================================================================
+                            TAB: AI PORTFOLIO COPILOT
+                            ============================================================================== */}
+                        {activeTab === 'copilot' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                                <div className="lg:col-span-1 space-y-4">
+                                    <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                                        <h4 className="font-bold text-sm mb-2 text-indigo-400">Quick Prompts</h4>
+                                        <div className="space-y-2">
+                                            <button onClick={() => triggerPresetCopilotQuery('risk')} className="w-full text-left text-xs font-semibold p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 transition-all">📈 Volatility Beta Score</button>
+                                            <button onClick={() => triggerPresetCopilotQuery('rebalance')} className="w-full text-left text-xs font-semibold p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 transition-all">⚖️ Order Rounding Gaps</button>
+                                            <button onClick={() => triggerPresetCopilotQuery('dividends')} className="w-full text-left text-xs font-semibold p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 transition-all">💰 Compounding Taxes Drag</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* CHAT HUB */}
+                                <div className={`lg:col-span-3 p-6 rounded-2xl border flex flex-col justify-between h-[500px] ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                                    <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
+                                        {messages.map((m, idx) => (
+                                            <div key={idx} className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs sm:text-sm leading-relaxed ${
+                                                    m.sender === 'user' ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'
+                                                }`}>
+                                                    <div className="font-extrabold text-[10px] tracking-wide mb-1 opacity-70">
+                                                        {m.sender === 'user' ? 'YOU' : 'FOLIOAI CO-PILOT'}
+                                                    </div>
+                                                    <div className="whitespace-pre-line font-medium">{m.text}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {isAiLoading && (
+                                            <div className="flex justify-start">
+                                                <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-slate-800 text-slate-300 rounded-bl-none">
+                                                    <div className="flex items-center space-x-1.5 py-1">
+                                                        <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                                        <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                                        <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <form onSubmit={handleSendMessage} className="flex items-center space-x-2 border-t border-slate-800/80 pt-4">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Ask advisor: 'Is VTI more volatile than SMH?' or 'Optimize my dividends drag'..."
+                                            value={copilotInput}
+                                            onChange={(e) => setCopilotInput(e.target.value)}
+                                            disabled={isAiLoading}
+                                            className="flex-1 px-4 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                        />
+                                        <button type="submit" disabled={isAiLoading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl">Inquire</button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+
+                    </div>
+
+                    {/* Dividend Collection Commission Modal Dialog */}
+                    {isClaimDivModalOpen && selectedDivToClaim && (
+                        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-slide-in">
+                            <div className="w-full max-w-md p-6 rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-2xl">
+                                <h3 className="font-bold text-base mb-1">Reinvest Dividend</h3>
+                                <p className="text-xs opacity-50 mb-4">Set brokerage fee or tax collection deduction details on gross payouts</p>
+                                
+                                <form onSubmit={executeClaimDividend} className="space-y-4">
+                                    <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-800 flex items-center justify-between text-xs">
+                                        <div>
+                                            <span className="font-bold opacity-60 block">Declared Holding</span>
+                                            <span className="font-black text-sm text-indigo-400">{selectedDivToClaim.symbol}</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="font-bold opacity-60 block">Gross Distribution</span>
+                                            <span className="font-black text-sm text-emerald-400">
+                                                {selectedDivToClaim.currency === 'USD' ? '$' : 'HK$'}{selectedDivToClaim.amount.toFixed(2)}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Toggle Deduct Mode FLAT / PERCENT */}
+                                    <div>
+                                        <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Commission Deduction Type</label>
+                                        <div className="grid grid-cols-2 gap-2 mb-3">
+                                            <button 
+                                                type="button"
+                                                onClick={() => {
+                                                    setDivCommissionType('FLAT');
+                                                    setDivCommissionVal(selectedDivToClaim.currency === 'HKD' ? '15.00' : '1.99');
+                                                }}
+                                                className={`py-1.5 rounded-lg text-xs font-bold transition-all border ${divCommissionType === 'FLAT' ? 'bg-indigo-950/40 text-indigo-400 border-indigo-500' : 'border-slate-800 opacity-60'}`}
+                                            >
+                                                💵 Flat Broker Fee
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                onClick={() => {
+                                                    setDivCommissionType('PERCENT');
+                                                    setDivCommissionVal('30'); // Default withholding tax e.g., US 30%
+                                                }}
+                                                className={`py-1.5 rounded-lg text-xs font-bold transition-all border ${divCommissionType === 'PERCENT' ? 'bg-indigo-950/40 text-indigo-400 border-indigo-500' : 'border-slate-800 opacity-60'}`}
+                                            >
+                                                ٪ Percentage / Tax
+                                            </button>
+                                        </div>
+
+                                        <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">
+                                            {divCommissionType === 'FLAT' ? 'Flat Commission Amount' : 'Withholding Tax / Fee Percentage'}
+                                        </label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div className="col-span-2">
+                                                <input 
+                                                    type="number" step="any"
+                                                    value={divCommissionVal} 
+                                                    onChange={(e) => setDivCommissionVal(e.target.value)}
+                                                    className="w-full p-2 bg-slate-800 rounded border border-slate-700 text-sm text-white focus:outline-none" 
+                                                    required 
+                                                />
+                                            </div>
+                                            <div className="bg-slate-800 flex items-center justify-center rounded border border-slate-700 font-bold text-xs text-slate-300">
+                                                {divCommissionType === 'FLAT' ? selectedDivToClaim.currency : '%'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-2 flex justify-between items-center text-xs border-t border-slate-800">
+                                        <span className="opacity-60">Estimated Net payout credit:</span>
+                                        <span className="font-black text-emerald-400">
+                                            {selectedDivToClaim.currency === 'USD' ? '$' : 'HK$'}
+                                            {(selectedDivToClaim.amount - (divCommissionType === 'FLAT' ? (parseFloat(divCommissionVal) || 0) : (selectedDivToClaim.amount * (parseFloat(divCommissionVal) || 0) / 100))).toFixed(2)}
+                                        </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2 pt-2">
+                                        <button 
+                                            type="button" 
+                                            onClick={() => {
+                                                setIsClaimDivModalOpen(false);
+                                                setSelectedDivToClaim(null);
+                                            }}
+                                            className="py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button 
+                                            type="submit" 
+                                            className="py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs"
+                                        >
+                                            Confirm Reinvestment
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Trade Trigger Dialog Modal */}
+                    {isBuySellModalOpen && selectedAssetForModal && (
+                        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                            <div className="w-full max-w-md p-6 rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-2xl">
+                                <h3 className="font-bold text-lg mb-4">Trade Position Sim - {selectedAssetForModal.symbol}</h3>
+                                <form onSubmit={handleBuySellSubmit} className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button type="button" onClick={() => setTradeType('BUY')} className={`py-1.5 rounded-xl text-xs font-bold ${tradeType==='BUY'?'bg-emerald-500/20 text-emerald-400 border border-emerald-500':'border border-slate-800'}`}>BUY</button>
+                                        <button type="button" onClick={() => setTradeType('SELL')} className={`py-1.5 rounded-xl text-xs font-bold ${tradeType==='SELL'?'bg-rose-500/20 text-rose-400 border-rose-500':'border border-slate-800'}`}>SELL</button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input type="number" step="any" placeholder="Shares" value={tradeAmount} onChange={(e) => setTradeAmount(e.target.value)} className="p-2 bg-slate-800 rounded border border-slate-700 text-sm" required />
+                                        <input type="number" step="any" placeholder="Price" value={tradePrice} onChange={(e) => setTradePrice(e.target.value)} className="p-2 bg-slate-800 rounded border border-slate-700 text-sm" required />
+                                    </div>
+                                    <button type="submit" className="w-full py-2 bg-indigo-600 rounded-xl text-sm font-bold">Process Simulation Trade</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Add Asset Modal */}
+                    {isAddModalOpen && (
+                        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+                            <div className="w-full max-w-md p-6 rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-2xl">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="font-extrabold text-lg">Add Custom Holding</h3>
+                                    <button onClick={() => setIsAddModalOpen(false)} className="text-sm hover:text-white opacity-50">✕</button>
+                                </div>
+                                <form onSubmit={handleAddAsset} className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Asset Symbol</label>
+                                            <input type="text" placeholder="e.g. VTI, AAPL" value={newSymbol} onChange={(e) => setNewSymbol(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Trading Currency</label>
+                                            <select value={newCurrency} onChange={(e) => setNewCurrency(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm text-white">
+                                                <option value="USD">USD ($)</option>
+                                                <option value="HKD">HKD (HK$)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Asset Name</label>
+                                        <input type="text" placeholder="e.g. Vanguard Total Stock" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div>
+                                            <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Qty</label>
+                                            <input type="number" step="any" placeholder="10" value={newShares} onChange={(e) => setNewShares(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Price</label>
+                                            <input type="number" step="any" placeholder="100" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Expense %</label>
+                                            <input type="number" step="any" placeholder="0.10" value={newExpenseRatio} onChange={(e) => setNewExpenseRatio(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                        </div>
+                                    </div>
+                                    <button type="submit" className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold">Add Position</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
                 </div>
             );
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
         root.render(<App />);
     </script>
 </body>
