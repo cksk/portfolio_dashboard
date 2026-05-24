@@ -90,7 +90,7 @@
                 if (!user || !sdk) return;
                 setCloudStatus('connecting');
                 
-                const docRef = sdk.doc(db, 'artifacts', 'portfolio-dashboard-prod', 'users', user.uid, 'portfolioState', 'data');
+                const docRef = sdk.doc(db, 'artifacts', 'portfolio-dashboard-main', 'users', user.uid, 'portfolioState', 'data');
                 
                 return sdk.onSnapshot(docRef, (docSnap) => {
                     if (docSnap.exists()) {
