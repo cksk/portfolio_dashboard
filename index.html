@@ -202,24 +202,29 @@
             const [cloudStatus, setCloudStatus] = useState('connecting'); // connecting | synced | saving | error | unauthenticated
 
             useEffect(() => {
-                const tools = getFirebaseTools();
-                if (!tools.initializeApp || firebaseConfig.apiKey === "PASTE_YOUR_API_KEY_HERE") {
+                // Use the real, globally bound window SDK directly to prevent 'tools' TypeErrors
+                const sdk = window.FirebaseSDK;
+                if (!sdk || firebaseConfig.apiKey === "PASTE_YOUR_API_KEY_HERE") {
                     setCloudStatus('unauthenticated');
                     return;
                 }
 
                 try {
-                    const app = tools.initializeApp(firebaseConfig);
-                    const auth = tools.getAuth(app);
-                    const db = tools.getFirestore(app);
+                    const app = sdk.initializeApp(firebaseConfig);
+                    const auth = sdk.getAuth(app);
+                    const db = sdk.getFirestore(app);
 
-                    const unsubscribe = tools.onAuthStateChanged(auth, (currentUser) => {
+                    // FIXED: Changed tools.onAuthStateChanged to sdk.onAuthStateChanged
+                    const unsubscribe = sdk.onAuthStateChanged(auth, (currentUser) => {
                         setUser(currentUser);
                         if (currentUser) {
                             setCloudStatus('connecting');
-                            // LOAD FROM FIXED COLLECTION SPACE: portfolio-dashboard-main
-                            const docRef = tools.doc(db, 'artifacts', 'portfolio-dashboard-main', 'users', currentUser.uid, 'portfolioState', 'data');
-                            tools.onSnapshot(docRef, (docSnap) => {
+                            
+                            // FIXED: Pointing securely to your verified portfolio-dashboard-main path
+                            const docRef = sdk.doc(db, 'artifacts', 'portfolio-dashboard-main', 'users', currentUser.uid, 'portfolioState', 'data');
+                            
+                            // FIXED: Changed tools.onSnapshot to sdk.onSnapshot
+                            sdk.onSnapshot(docRef, (docSnap) => {
                                 if (docSnap.exists()) {
                                     const cloudData = docSnap.data();
                                     if (cloudData.holdings) setHoldings(cloudData.holdings);
@@ -228,8 +233,8 @@
                                     if (cloudData.unclaimedDividends) setUnclaimedDividends(cloudData.unclaimedDividends);
                                     setCloudStatus('synced');
                                 } else {
-                                    // Seeding basic arrays on fresh path init
-                                    tools.setDoc(docRef, {
+                                    // Fresh account fallback initialization
+                                    sdk.setDoc(docRef, {
                                         holdings: INITIAL_HOLDINGS,
                                         transactions: INITIAL_TRANSACTIONS,
                                         claimedDividendsCash: 0,
