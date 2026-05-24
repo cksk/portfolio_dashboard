@@ -32,11 +32,13 @@
             background: #334155;
             border-radius: 99px;
         }
-        /* Glassmorphism utility */
-        .glass {
-            background: rgba(15, 23, 42, 0.45);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+        /* Elegant CSS animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
     </style>
 </head>
@@ -51,13 +53,12 @@
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Expose modules to the window context so Babel-transpiled React can consume them
+        // Expose modules to the window context so Babel-transpiled React can consume them safely
         window.FirebaseSDK = { initializeApp, getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot };
     </script>
 
     <!-- Main React App Script (Transpiled on the fly by Babel) -->
     <script type="text/babel">
-        // Grab exposed Firebase SDK tools
         const getFirebaseTools = () => {
             return window.FirebaseSDK || {
                 initializeApp: () => {}, getAuth: () => {}, signInWithPopup: () => {}, GoogleAuthProvider: () => {}, signOut: () => {}, onAuthStateChanged: () => {}, getFirestore: () => {}, doc: () => {}, setDoc: () => {}, onSnapshot: () => {}
@@ -68,7 +69,7 @@
 
         // --- PASTE YOUR FIREBASE CONFIG HERE ---
         const firebaseConfig = {
- 	    apiKey: "AIzaSyBRgONBX1nXM0fPjYhQsqfYBjq41NyU-fc",
+            apiKey: "AIzaSyBRgONBX1nXM0fPjYhQsqfYBjq41NyU-fc",
             authDomain: "calvin-dashboard.firebaseapp.com",
             projectId: "calvin-dashboard",
             storageBucket: "calvin-dashboard.firebasestorage.app",
@@ -77,7 +78,7 @@
 	};
 
 
-        // Initialize Firebase
+        // Initialize Firebase SDK instances safely
         const tools = getFirebaseTools();
         let app, auth, db, googleProvider;
         const appId = 'portfolio-dashboard-main';
@@ -88,32 +89,17 @@
             db = tools.getFirestore(app);
             googleProvider = new tools.GoogleAuthProvider();
         } catch (e) {
-            console.error("Firebase SDK init failed. Running in static demo mode.");
+            console.warn("Firebase Config placeholders detected. Running in secure local preview sandbox.");
         }
 
-        // --- SYSTEM PROMPT FOR CO-PILOT ---
         const SYSTEM_PROMPT = `You are "FolioAI", an elite financial portfolio assistant and risk advisor. 
-        You are analyzing the user's pure equity portfolio consisting of: VTI, SCHG, SCHF, SMH, 3110.HK, and 3010.HK.
-        Your goal is to provide highly analytical, insightful, and strategic feedback. Keep answers concise and structured.`;
+        The user is analyzing their pure equity portfolio. Your goal is to provide highly analytical, insightful, and strategic feedback. 
+        Focus strictly on the custom tickers, target weights, and assets the user has loaded into their dashboard. 
+        Suggest rebalancing configurations using modern portfolio theory. Keep answers concise, bulleted, and highly professional.`;
 
-        // --- INITIAL DATA ---
-        const INITIAL_HOLDINGS = [
-            { id: '1', symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', category: 'Stocks', shares: 77, avgBuyPrice: 245.50, currentPrice: 278.60, color: '#3b82f6', targetWeight: 45, estYield: 1.38, lastDividendDate: '2026-03-24', dividendPerShare: 0.95 },
-            { id: '2', symbol: 'SCHG', name: 'Schwab U.S. Large-Cap Growth ETF', category: 'Stocks', shares: 58, avgBuyPrice: 91.20, currentPrice: 112.45, color: '#60a5fa', targetWeight: 25, estYield: 0.43, lastDividendDate: '2026-03-20', dividendPerShare: 0.12 },
-            { id: '3', symbol: 'SCHF', name: 'Schwab International Equity ETF', category: 'Stocks', shares: 34, avgBuyPrice: 35.40, currentPrice: 41.12, color: '#10b981', targetWeight: 15, estYield: 2.85, lastDividendDate: '2026-06-18', dividendPerShare: 0.29 },
-            { id: '4', symbol: 'SMH', name: 'VanEck Semiconductor ETF', category: 'Stocks', shares: 17, avgBuyPrice: 205.10, currentPrice: 254.80, color: '#f59e0b', targetWeight: 10, estYield: 0.50, lastDividendDate: '2026-03-15', dividendPerShare: 0.31 },
-            { id: '5', symbol: '3110.HK', name: 'Global X China Biotech ETF', category: 'Stocks', shares: 200, avgBuyPrice: 5.15, currentPrice: 6.12, color: '#8b5cf6', targetWeight: 2.5, estYield: 0.00, lastDividendDate: 'N/A', dividendPerShare: 0.00 },
-            { id: '6', symbol: '3010.HK', name: 'Amundi MSCI China UCITS ETF', category: 'Stocks', shares: 300, avgBuyPrice: 3.80, currentPrice: 4.45, color: '#eab308', targetWeight: 2.5, estYield: 1.10, lastDividendDate: '2026-05-10', dividendPerShare: 0.05 }
-        ];
-
-        const INITIAL_TRANSACTIONS = [
-            { id: 'tx-1', type: 'BUY', symbol: 'VTI', category: 'Stocks', amount: 77, price: 245.50, date: '2026-01-10' },
-            { id: 'tx-2', type: 'BUY', symbol: 'SCHG', category: 'Stocks', amount: 58, price: 91.20, date: '2026-02-15' },
-            { id: 'tx-3', type: 'BUY', symbol: 'SCHF', category: 'Stocks', amount: 34, price: 35.40, date: '2026-03-05' },
-            { id: 'tx-4', type: 'BUY', symbol: 'SMH', category: 'Stocks', amount: 17, price: 205.10, date: '2026-03-22' },
-            { id: 'tx-5', type: 'BUY', symbol: '3110.HK', category: 'Stocks', amount: 200, price: 5.15, date: '2026-04-02' },
-            { id: 'tx-6', type: 'BUY', symbol: '3010.HK', category: 'Stocks', amount: 300, price: 3.80, date: '2026-04-18' }
-        ];
+        // --- ZERO FALLBACK INITIAL STATE (Absolute Blank Slate) ---
+        const INITIAL_HOLDINGS = [];
+        const INITIAL_TRANSACTIONS = [];
 
         function App() {
             const [holdings, setHoldings] = useState(INITIAL_HOLDINGS);
@@ -124,12 +110,9 @@
             const [selectedAssetForModal, setSelectedAssetForModal] = useState(null);
             
             const [claimedDividendsCash, setClaimedDividendsCash] = useState(0);
-            const [unclaimedDividends, setUnclaimedDividends] = useState([
-                { id: 'div-1', symbol: '3010.HK', amount: 15.00, perShare: 0.05, date: '2026-05-10', processed: false },
-                { id: 'div-2', symbol: 'VTI', amount: 73.15, perShare: 0.95, date: '2026-06-24', processed: false, simulatedUpcoming: true }
-            ]);
+            const [unclaimedDividends, setUnclaimedDividends] = useState([]);
 
-            // Form state
+            // Modals and Forms state
             const [isAddModalOpen, setIsAddModalOpen] = useState(false);
             const [isBuySellModalOpen, setIsBuySellModalOpen] = useState(false);
             const [newSymbol, setNewSymbol] = useState('');
@@ -141,21 +124,18 @@
             const [tradeAmount, setTradeAmount] = useState('');
             const [tradePrice, setTradePrice] = useState('');
 
-            // AI Copilot
+            // AI Copilot integration state
             const [copilotInput, setCopilotInput] = useState('');
             const [messages, setMessages] = useState([
-                { sender: 'assistant', text: "Hello! I am your FolioAI Co-Pilot. I am running natively in your browser! Ask me to evaluate ETF overlaps or help you plan target acquisitions." }
+                { sender: 'assistant', text: "Welcome to your blank secure canvas. Once you log in, add stock and ETF tickers, customize desired weights, and I will analyze your allocations instantly!" }
             ]);
             const [isAiLoading, setIsAiLoading] = useState(false);
-
-            // Theme toggle
             const [isDarkMode, setIsDarkMode] = useState(true);
 
-            // Cloud Sync persistence
+            // Cloud persistence states
             const [user, setUser] = useState(null);
             const [cloudStatus, setCloudStatus] = useState('connecting'); // connecting | synced | saving | unauthenticated
 
-            // Set up Firebase Auth state listener
             useEffect(() => {
                 if (!auth) {
                     setCloudStatus('unauthenticated');
@@ -170,7 +150,6 @@
                 return () => unsubscribe();
             }, []);
 
-            // Set up Firebase data stream
             useEffect(() => {
                 if (!user || !db) return;
 
@@ -186,14 +165,14 @@
                         if (d.unclaimedDividends) setUnclaimedDividends(d.unclaimedDividends);
                         setCloudStatus('synced');
                     } else {
-                        // First-time setup seed
-                        const initialSeed = {
-                            holdings: INITIAL_HOLDINGS,
-                            transactions: INITIAL_TRANSACTIONS,
+                        // Document does not exist: Seed a completely empty dashboard for this user
+                        const blankSlate = {
+                            holdings: [],
+                            transactions: [],
                             claimedDividendsCash: 0,
-                            unclaimedDividends: unclaimedDividends
+                            unclaimedDividends: []
                         };
-                        tools.setDoc(docRef, initialSeed)
+                        tools.setDoc(docRef, blankSlate)
                             .then(() => setCloudStatus('synced'))
                             .catch(() => setCloudStatus('unauthenticated'));
                     }
@@ -202,7 +181,6 @@
                 return () => unsubscribe();
             }, [user]);
 
-            // Save function helper
             const saveToCloud = async (newHoldings, newTransactions, newDividendsCash, newUnclaimed) => {
                 if (!user || !db || cloudStatus === 'unauthenticated') return;
                 setCloudStatus('saving');
@@ -217,19 +195,19 @@
                     });
                     setCloudStatus('synced');
                 } catch (err) {
-                    console.error("Cloud save failed:", err);
-                    setCloudStatus('synced'); // Recover state locally
+                    console.error("Cloud upload error:", err);
+                    setCloudStatus('synced'); 
                 }
             };
 
-            // Login & Logout flows
+            // OAuth login mechanisms
             const handleSignIn = async () => {
                 if (!auth) return;
                 setCloudStatus('connecting');
                 try {
                     await tools.signInWithPopup(auth, googleProvider);
                 } catch (error) {
-                    console.error("Login failed:", error);
+                    console.error("Google popup error:", error);
                     setCloudStatus('unauthenticated');
                 }
             };
@@ -239,15 +217,15 @@
                 setCloudStatus('connecting');
                 try {
                     await tools.signOut(auth);
-                    setHoldings(INITIAL_HOLDINGS);
-                    setTransactions(INITIAL_TRANSACTIONS);
+                    setHoldings([]);
+                    setTransactions([]);
                     setClaimedDividendsCash(0);
+                    setUnclaimedDividends([]);
                 } catch (error) {
-                    console.error("Sign out failed:", error);
+                    console.error("Sign out error:", error);
                 }
             };
 
-            // Totals derivation
             const totals = useMemo(() => {
                 let totalValue = 0;
                 let totalCost = 0;
@@ -280,10 +258,9 @@
                 return holdings.reduce((acc, h) => acc + h.targetWeight, 0);
             }, [holdings]);
 
-            // Market simulation
             useEffect(() => {
                 let interval;
-                if (isSimulatorRunning) {
+                if (isSimulatorRunning && holdings.length > 0) {
                     interval = setInterval(() => {
                         setHoldings(prevHoldings => {
                             const next = prevHoldings.map(h => {
@@ -298,7 +275,7 @@
                     }, 3000);
                 }
                 return () => clearInterval(interval);
-            }, [isSimulatorRunning, transactions, claimedDividendsCash, unclaimedDividends]);
+            }, [isSimulatorRunning, transactions, claimedDividendsCash, unclaimedDividends, holdings]);
 
             const handleTargetWeightChange = (id, newWeight) => {
                 const val = Math.max(0, Math.min(100, parseFloat(newWeight) || 0));
@@ -454,7 +431,7 @@
 
                     setHoldings(nextHoldings);
                     setTransactions(nextTx);
-                    saveToCloud(nextHoldings, nextTx, claimedDividendsCash, nextUnclaimed);
+                    saveToCloud(nextHoldings, nextTx, claimedDividendsCash, unclaimedDividends);
                 }
             };
 
@@ -513,8 +490,8 @@
                 callGemini(queryText);
             };
 
-            // Chart Logic
             const chartPoints = useMemo(() => {
+                if (totals.totalValue === 0) return [];
                 const pointsCount = timeframe === '1D' ? 12 : timeframe === '1W' ? 7 : timeframe === '1M' ? 15 : 30;
                 const seedValue = totals.totalValue;
                 const volatility = timeframe === '1D' ? 0.005 : timeframe === '1W' ? 0.015 : timeframe === '1M' ? 0.04 : 0.09;
@@ -563,7 +540,7 @@
             if (!user) {
                 return (
                     <div className={`min-h-screen font-sans flex items-center justify-center p-4 transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
-                        <div className={`w-full max-w-md p-8 rounded-3xl border text-center transition-all ${isDarkMode ? 'bg-slate-900/50 border-slate-800 shadow-2xl' : 'bg-white border-slate-200 shadow-lg'}`}>
+                        <div className={`w-full max-w-md p-8 rounded-3xl border text-center transition-all ${isDarkMode ? 'bg-slate-900/50 border-slate-800 shadow-2xl animate-fade-in' : 'bg-white border-slate-200 shadow-lg animate-fade-in'}`}>
                             <div className="bg-gradient-to-tr from-indigo-500 to-violet-500 w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-xl mx-auto mb-6">
                                 <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                             </div>
@@ -589,7 +566,7 @@
             }
 
             return (
-                <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
+                <div className={`min-h-screen font-sans transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
                     
                     {/* Unclaimed Dividend Notification Banner */}
                     {unclaimedDividends.some(d => !d.processed && !d.simulatedUpcoming) && (
@@ -618,14 +595,14 @@
                                 </div>
                                 <div>
                                     <h1 className="text-xl font-bold tracking-tight">Folio<span className="text-indigo-400">AI</span></h1>
-                                    <p className="text-[10px] opacity-60 font-medium">Standalone Asset Companion</p>
+                                    <p className="text-[10px] opacity-60 font-medium">Secure Pure Equity Companion</p>
                                 </div>
                             </div>
 
                             <div className="flex items-center space-x-3">
                                 <div className={`flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide border ${
                                     cloudStatus === 'synced' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                                    cloudStatus === 'saving' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                    cloudStatus === 'saving' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20 animate-pulse'
                                 }`}>
                                     <span className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'synced' ? 'bg-emerald-400' : 'bg-slate-400'}`}></span>
                                     <span>{cloudStatus === 'synced' ? 'CLOUD SYNC' : cloudStatus === 'saving' ? 'SAVING' : 'OFFLINE'}</span>
@@ -644,7 +621,11 @@
                                     {isDarkMode ? '🌙' : '☀️'}
                                 </button>
 
-                                <button onClick={handleSignOut} className="bg-slate-850 hover:bg-slate-800 text-rose-400 text-xs font-bold border border-slate-700 px-3.5 py-2 rounded-xl">
+                                <button onClick={() => setIsAddModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-md">
+                                    + Add Asset
+                                </button>
+
+                                <button onClick={handleSignOut} className="bg-slate-850 hover:bg-rose-500/10 hover:text-rose-400 text-slate-400 text-xs font-bold border border-slate-700/80 px-3.5 py-2 rounded-xl">
                                     Sign Out
                                 </button>
                             </div>
@@ -652,7 +633,7 @@
                     </header>
 
                     {/* Dashboard Wrapper */}
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
                         
                         {/* Upper Metric Widgets */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -698,124 +679,150 @@
                         </div>
 
                         {/* Main Screen Router */}
+                        {}
                         {activeTab === 'dashboard' && (
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <div className={`lg:col-span-2 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                    <h3 className="font-bold text-lg">Value Growth Pathway</h3>
-                                    <div className="relative w-full h-48 mt-4">
-                                        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full overflow-visible">
-                                            <path d={generateAreaPath()} fill="rgba(99,102,241,0.15)" />
-                                            <path d={generatePath()} fill="none" stroke="#6366f1" strokeWidth="3" />
-                                        </svg>
-                                    </div>
+                            holdings.length === 0 ? (
+                                <div className={`text-center py-16 px-4 rounded-3xl border border-dashed ${isDarkMode ? 'bg-slate-900/20 border-slate-850' : 'bg-white border-slate-200 shadow-sm'}`}>
+                                    <span className="text-4xl block mb-4">🚀</span>
+                                    <h3 className="font-extrabold text-xl tracking-tight mb-2">Blank Canvas Initialized</h3>
+                                    <p className="text-xs opacity-60 leading-relaxed max-w-sm mx-auto mb-6">
+                                        Your cloud data is securely isolated. Click the "+ Add Asset" button in the top menu to create your custom equity holdings.
+                                    </p>
+                                    <button onClick={() => setIsAddModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg transition-all">
+                                        Add Your First Asset
+                                    </button>
                                 </div>
+                            ) : (
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+                                    <div className={`lg:col-span-2 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                        <h3 className="font-bold text-lg">Value Growth Pathway</h3>
+                                        <div className="relative w-full h-48 mt-4">
+                                            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full overflow-visible">
+                                                <path d={generateAreaPath()} fill="rgba(99,102,241,0.15)" />
+                                                <path d={generatePath()} fill="none" stroke="#6366f1" strokeWidth="3" />
+                                            </svg>
+                                        </div>
+                                    </div>
 
-                                <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                    <h3 className="font-bold text-lg mb-4">Diversification Breakdown</h3>
-                                    <div className="space-y-3">
-                                        {holdings.map(h => {
-                                            const weight = totals.totalValue > 0 ? ((h.shares * h.currentPrice) / totals.totalValue) * 100 : 0;
-                                            return (
-                                                <div key={h.id} className="flex items-center justify-between text-xs font-semibold">
-                                                    <span className="flex items-center space-x-2">
-                                                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: h.color }}></span>
-                                                        <span>{h.symbol}</span>
-                                                    </span>
-                                                    <span>{weight.toFixed(1)}%</span>
-                                                </div>
-                                            );
-                                        })}
+                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                        <h3 className="font-bold text-lg mb-4">Diversification Breakdown</h3>
+                                        <div className="space-y-3">
+                                            {holdings.map(h => {
+                                                const weight = totals.totalValue > 0 ? ((h.shares * h.currentPrice) / totals.totalValue) * 100 : 0;
+                                                return (
+                                                    <div key={h.id} className="flex items-center justify-between text-xs font-semibold">
+                                                        <span className="flex items-center space-x-2">
+                                                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: h.color }}></span>
+                                                            <span>{h.symbol}</span>
+                                                        </span>
+                                                        <span>{weight.toFixed(1)}%</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className={`lg:col-span-3 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                    <h3 className="font-bold text-lg mb-4">Open Allocation Positions</h3>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left text-xs sm:text-sm">
-                                            <thead>
-                                                <tr className="border-b border-slate-800 opacity-60">
-                                                    <th className="py-2.5 px-2">Asset</th>
-                                                    <th className="py-2.5 px-2 text-right">Shares</th>
-                                                    <th className="py-2.5 px-2 text-right">Market Value</th>
-                                                    <th className="py-2.5 px-2 text-right">Current Weight</th>
-                                                    <th className="py-2.5 px-2 text-right">Target Weight</th>
-                                                    <th className="py-2.5 px-2 text-right">Action Gap</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {holdings.map(h => {
-                                                    const val = h.shares * h.currentPrice;
-                                                    const curW = totals.totalValue > 0 ? (val / totals.totalValue) * 100 : 0;
-                                                    const tarVal = (h.targetWeight / 100) * totals.totalValue;
-                                                    const cashG = tarVal - val;
-                                                    return (
-                                                        <tr key={h.id} className="hover:bg-slate-800/10 border-b border-slate-800/40">
-                                                            <td className="py-3 px-2 font-bold">{h.symbol}</td>
-                                                            <td className="py-3 px-2 text-right">{h.shares.toLocaleString()}</td>
-                                                            <td className="py-3 px-2 text-right font-extrabold">${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                                                            <td className="py-3 px-2 text-right">{curW.toFixed(1)}%</td>
-                                                            <td className="py-3 px-2 text-right">{h.targetWeight}%</td>
-                                                            <td className={`py-3 px-2 text-right font-extrabold ${cashG >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                                {cashG >= 10 ? `BUY $${cashG.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : cashG <= -10 ? `SELL $${Math.abs(cashG).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : 'BALANCED'}
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
+                                    <div className={`lg:col-span-3 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                        <h3 className="font-bold text-lg mb-4">Open Allocation Positions</h3>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left text-xs sm:text-sm">
+                                                <thead>
+                                                    <tr className="border-b border-slate-800 opacity-60">
+                                                        <th className="py-2.5 px-2">Asset</th>
+                                                        <th className="py-2.5 px-2 text-right">Shares</th>
+                                                        <th className="py-2.5 px-2 text-right">Market Value</th>
+                                                        <th className="py-2.5 px-2 text-right">Current Weight</th>
+                                                        <th className="py-2.5 px-2 text-right">Target Weight</th>
+                                                        <th className="py-2.5 px-2 text-right">Action Gap</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {holdings.map(h => {
+                                                        const val = h.shares * h.currentPrice;
+                                                        const curW = totals.totalValue > 0 ? (val / totals.totalValue) * 100 : 0;
+                                                        const tarVal = (h.targetWeight / 100) * totals.totalValue;
+                                                        const cashG = tarVal - val;
+                                                        return (
+                                                            <tr key={h.id} className="hover:bg-slate-800/10 border-b border-slate-800/40">
+                                                                <td className="py-3 px-2 font-bold">{h.symbol}</td>
+                                                                <td className="py-3 px-2 text-right">{h.shares.toLocaleString()}</td>
+                                                                <td className="py-3 px-2 text-right font-extrabold">${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                                                <td className="py-3 px-2 text-right">{curW.toFixed(1)}%</td>
+                                                                <td className="py-3 px-2 text-right">{h.targetWeight}%</td>
+                                                                <td className={`py-3 px-2 text-right font-extrabold ${cashG >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                                    {cashG >= 10 ? `BUY $${cashG.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : cashG <= -10 ? `SELL $${Math.abs(cashG).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : 'BALANCED'}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )
                         )}
 
-                        {/* Weight Target Setup */}
+                        {/* Target Setup Tab */}
                         {activeTab === 'holdings' && (
                             <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
                                 <h3 className="font-bold text-lg mb-4">Target Matrix Settings</h3>
-                                <div className="space-y-4">
-                                    {holdings.map(h => (
-                                        <div key={h.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-800/20 border border-slate-800/40">
-                                            <span className="font-bold">{h.symbol}</span>
-                                            <div className="flex items-center space-x-2">
-                                                <input 
-                                                    type="number" 
-                                                    min="0" 
-                                                    max="100" 
-                                                    value={h.targetWeight} 
-                                                    onChange={(e) => handleTargetWeightChange(h.id, e.target.value)}
-                                                    className="w-16 text-center px-1 py-1 rounded font-bold bg-slate-800 border border-slate-700 text-white"
-                                                />
-                                                <span className="font-bold text-xs">% target weight</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Dividends View */}
-                        {activeTab === 'dividends' && (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                    <h3 className="font-bold text-lg mb-4">Historical Income Log</h3>
-                                    <div className="space-y-3">
-                                        {unclaimedDividends.map((div, idx) => (
-                                            <div key={idx} className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 flex items-center justify-between">
-                                                <div>
-                                                    <span className="font-bold text-sm block">{div.symbol} Cash Flow</span>
-                                                    <span className="text-[10px] opacity-60 block">Declared On: {div.date}</span>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className="font-extrabold text-emerald-400 block">${div.amount.toFixed(2)}</span>
-                                                    {div.processed ? (
-                                                        <span className="text-xs font-semibold text-slate-500">PAID</span>
-                                                    ) : (
-                                                        <button onClick={() => claimDividend(div.id)} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold px-2.5 py-1 rounded">Claim</button>
-                                                    )}
+                                {holdings.length === 0 ? (
+                                    <p className="text-xs opacity-50">No holdings detected. Add assets to adjust desired targets.</p>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {holdings.map(h => (
+                                            <div key={h.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-800/20 border border-slate-800/40">
+                                                <span className="font-bold">{h.symbol}</span>
+                                                <div className="flex items-center space-x-2">
+                                                    <input 
+                                                        type="number" 
+                                                        min="0" 
+                                                        max="100" 
+                                                        value={h.targetWeight} 
+                                                        onChange={(e) => handleTargetWeightChange(h.id, e.target.value)}
+                                                        className="w-16 text-center px-1 py-1 rounded font-bold bg-slate-800 border border-slate-700 text-white"
+                                                    />
+                                                    <span className="font-bold text-xs">% target weight</span>
+                                                    <button onClick={() => deleteHolding(h.id)} className="text-rose-500 ml-2 hover:bg-rose-500/10 p-1.5 rounded" title="Delete holding">
+                                                        🗑️
+                                                    </button>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Dividends Tab */}
+                        {}
+                        {activeTab === 'dividends' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                    <h3 className="font-bold text-lg mb-4">Historical Income Log</h3>
+                                    {unclaimedDividends.length === 0 ? (
+                                        <p className="text-xs opacity-50">No dividend income distributions generated yet.</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {unclaimedDividends.map((div, idx) => (
+                                                <div key={idx} className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 flex items-center justify-between">
+                                                    <div>
+                                                        <span className="font-bold text-sm block">{div.symbol} Cash Flow</span>
+                                                        <span className="text-[10px] opacity-60 block">Declared On: {div.date}</span>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="font-extrabold text-emerald-400 block">${div.amount.toFixed(2)}</span>
+                                                        {div.processed ? (
+                                                            <span className="text-xs font-semibold text-slate-500">PAID</span>
+                                                        ) : (
+                                                            <button onClick={() => claimDividend(div.id)} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold px-2.5 py-1 rounded">Claim</button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -842,6 +849,39 @@
                         </div>
                     )}
 
+                    {/* Add Asset Modal */}
+                    {isAddModalOpen && (
+                        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+                            <div className="w-full max-w-md p-6 rounded-3xl border border-slate-800 bg-slate-900 text-white">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="font-extrabold text-lg">Add Custom Holding</h3>
+                                    <button onClick={() => setIsAddModalOpen(false)} className="text-sm hover:text-white opacity-50">✕</button>
+                                </div>
+                                <form onSubmit={handleAddAsset} className="space-y-4">
+                                    <div>
+                                        <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Asset Symbol</label>
+                                        <input type="text" placeholder="e.g. VTI, AAPL" value={newSymbol} onChange={(e) => setNewSymbol(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Asset Name</label>
+                                        <input type="text" placeholder="e.g. Vanguard Total Stock" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Qty</label>
+                                            <input type="number" step="any" placeholder="10" value={newShares} onChange={(e) => setNewShares(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Buy Price</label>
+                                            <input type="number" step="any" placeholder="100" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                        </div>
+                                    </div>
+                                    <button type="submit" className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg transition-all">Add Position</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
                 </div>
             );
         }
@@ -852,3 +892,4 @@
     </script>
 </body>
 </html>
+```aimagination
