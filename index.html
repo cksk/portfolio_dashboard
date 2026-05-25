@@ -53,7 +53,6 @@
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // FIXED: Added onAuthStateChanged here so React can access it and prevent the TypeError crash
         window.FirebaseSDK = { initializeApp, getAuth, signInWithPopup, GoogleAuthProvider, signOut, onSnapshot, getFirestore, doc, setDoc, onAuthStateChanged };
     </script>
 
@@ -69,107 +68,83 @@
 
         // --- LOOK-THROUGH METADATA FOR GEOGRAPHIC, SECTOR & STOCK OVERLAPS ---
         const ASSET_METADATA = {
-            VTI: {
-                geographic: { US: 99.5, Europe: 0, AsiaPacific: 0.5, ChinaHK: 0 },
-                sectors: { Technology: 39.3, Consumer: 13.4, Financials: 10.3, Healthcare: 8.8, Communications: 10.0, Industrials: 12.4, Other: 5.8 },
-                holdings: { NVDA: 6.62, AAPL: 5.73, MSFT: 4.35, AMZN: 3.68, GOOGL: 3.22 },
-                beta: 1.00,
-                lotSize: 1
-            },
-            SCHG: {
-                geographic: { US: 99.7, Europe: 0, AsiaPacific: 0.3, ChinaHK: 0 },
-                sectors: { Technology: 46.1, Consumer: 12.4, Financials: 6.7, Healthcare: 8.3, Communications: 15.6, Industrials: 6.1, Other: 4.8 },
-                holdings: { NVDA: 11.92, AAPL: 9.76, MSFT: 6.89, AMZN: 5.63, GOOGL: 5.02 },
-                beta: 1.15,
-                lotSize: 1
-            },
-            SCHF: {
-                geographic: { US: 0.5, Europe: 55.0, AsiaPacific: 40.0, ChinaHK: 4.5 },
-                sectors: { Technology: 18.2, Consumer: 11.5, Financials: 19.8, Healthcare: 12.5, Communications: 5.0, Industrials: 15.0, Other: 18.0 },
-                holdings: { ASML: 3.50, NOVN: 2.10, NESN: 2.50, ROG: 1.80, TTE: 1.50 },
-                beta: 0.88,
-                lotSize: 1
-            },
-            SMH: {
-                geographic: { US: 82.9, Europe: 5.0, AsiaPacific: 12.1, ChinaHK: 0 },
-                sectors: { Technology: 100.0, Consumer: 0, Financials: 0, Healthcare: 0, Communications: 0, Industrials: 0, Other: 0 },
-                holdings: { NVDA: 17.10, TSM: 9.55, INTC: 7.94, AVGO: 7.14, AMD: 7.00 },
-                beta: 1.45,
-                lotSize: 1
-            },
-            '3110.HK': {
-                geographic: { US: 0, Europe: 0, AsiaPacific: 0, ChinaHK: 100.0 },
-                sectors: { Technology: 0, Consumer: 0, Financials: 0, Healthcare: 100.0, Communications: 0, Industrials: 0, Other: 0 },
-                holdings: { BEIGENE: 15.00, WUXI_BIO: 12.00, INNOVENT: 10.00, AKESO: 8.00, SINO_PHARMA: 6.00 },
-                beta: 0.92,
-                lotSize: 500
-            },
-            '3010.HK': {
-                geographic: { US: 0, Europe: 0, AsiaPacific: 35.0, ChinaHK: 65.0 },
-                sectors: { Technology: 45.4, Consumer: 15.0, Financials: 18.0, Healthcare: 5.0, Communications: 10.0, Industrials: 5.0, Other: 1.6 },
-                holdings: { TSM: 15.83, SMSN: 8.58, SK_HYNIX: 6.41, TENCENT: 3.26, ALIBABA: 2.51 },
-                beta: 0.82,
-                lotSize: 100
-            }
+            VTI: { geographic: { US: 99.5, Europe: 0, AsiaPacific: 0.5, ChinaHK: 0 }, sectors: { Technology: 39.3, Consumer: 13.4, Financials: 10.3, Healthcare: 8.8, Communications: 10.0, Industrials: 12.4, Other: 5.8 }, holdings: { NVDA: 6.62, AAPL: 5.73, MSFT: 4.35, AMZN: 3.68, GOOGL: 3.22 }, beta: 1.00, lotSize: 1 },
+            SCHG: { geographic: { US: 99.7, Europe: 0, AsiaPacific: 0.3, ChinaHK: 0 }, sectors: { Technology: 46.1, Consumer: 12.4, Financials: 6.7, Healthcare: 8.3, Communications: 15.6, Industrials: 6.1, Other: 4.8 }, holdings: { NVDA: 11.92, AAPL: 9.76, MSFT: 6.89, AMZN: 5.63, GOOGL: 5.02 }, beta: 1.15, lotSize: 1 },
+            SCHF: { geographic: { US: 0.5, Europe: 55.0, AsiaPacific: 40.0, ChinaHK: 4.5 }, sectors: { Technology: 18.2, Consumer: 11.5, Financials: 19.8, Healthcare: 12.5, Communications: 5.0, Industrials: 15.0, Other: 18.0 }, holdings: { ASML: 3.50, NOVN: 2.10, NESN: 2.50, ROG: 1.80, TTE: 1.50 }, beta: 0.88, lotSize: 1 },
+            SMH: { geographic: { US: 82.9, Europe: 5.0, AsiaPacific: 12.1, ChinaHK: 0 }, sectors: { Technology: 100.0, Consumer: 0, Financials: 0, Healthcare: 0, Communications: 0, Industrials: 0, Other: 0 }, holdings: { NVDA: 17.10, TSM: 9.55, INTC: 7.94, AVGO: 7.14, AMD: 7.00 }, beta: 1.45, lotSize: 1 },
+            '3110.HK': { geographic: { US: 0, Europe: 0, AsiaPacific: 0, ChinaHK: 100.0 }, sectors: { Technology: 0, Consumer: 0, Financials: 0, Healthcare: 100.0, Communications: 0, Industrials: 0, Other: 0 }, holdings: { BEIGENE: 15.00, WUXI_BIO: 12.00, INNOVENT: 10.00, AKESO: 8.00, SINO_PHARMA: 6.00 }, beta: 0.92, lotSize: 500 },
+            '3010.HK': { geographic: { US: 0, Europe: 0, AsiaPacific: 35.0, ChinaHK: 65.0 }, sectors: { Technology: 45.4, Consumer: 15.0, Financials: 18.0, Healthcare: 5.0, Communications: 10.0, Industrials: 5.0, Other: 1.6 }, holdings: { TSM: 15.83, SMSN: 8.58, SK_HYNIX: 6.41, TENCENT: 3.26, ALIBABA: 2.51 }, beta: 0.82, lotSize: 100 }
         };
 
-        // --- SYSTEM PROMPT FOR CO-PILOT ---
         const SYSTEM_PROMPT = `You are "FolioAI", an elite financial portfolio assistant and risk advisor. 
         You are analyzing the user's pure equity portfolio consisting of: VTI, SCHG, SCHF, SMH, 3110.HK, and 3010.HK.
         Your goal is to provide highly analytical, insightful, and strategic feedback. Include the new risk metrics and stress-testing drawdowns.`;
 
-        // --- INITIAL DATASEED FOR NEW ACCOUNTS ---
+        // ZEROED OUT BASELINE: Ensures your public GitHub source code is completely private.
         const INITIAL_HOLDINGS = [
-            { id: '1', symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', category: 'Stocks', shares: 77, avgBuyPrice: 245.50, currentPrice: 278.60, color: '#3b82f6', targetWeight: 45, estYield: 1.38, lastDividendDate: '2026-03-24', dividendPerShare: 0.95, currency: 'USD', expenseRatio: 0.03 },
-            { id: '2', symbol: 'SCHG', name: 'Schwab U.S. Large-Cap Growth ETF', category: 'Stocks', shares: 58, avgBuyPrice: 91.20, currentPrice: 112.45, color: '#60a5fa', targetWeight: 25, estYield: 0.43, lastDividendDate: '2026-03-20', dividendPerShare: 0.12, currency: 'USD', expenseRatio: 0.04 },
-            { id: '3', symbol: 'SCHF', name: 'Schwab International Equity ETF', category: 'Stocks', shares: 34, avgBuyPrice: 35.40, currentPrice: 41.12, color: '#10b981', targetWeight: 15, estYield: 2.85, lastDividendDate: '2026-06-18', dividendPerShare: 0.29, currency: 'USD', expenseRatio: 0.06 },
-            { id: '4', symbol: 'SMH', name: 'VanEck Semiconductor ETF', category: 'Stocks', shares: 17, avgBuyPrice: 205.10, currentPrice: 254.80, color: '#f59e0b', targetWeight: 10, estYield: 0.50, lastDividendDate: '2026-03-15', dividendPerShare: 0.31, currency: 'USD', expenseRatio: 0.35 },
-            { id: '5', symbol: '3110.HK', name: 'Global X China Biotech ETF', category: 'Stocks', shares: 200, avgBuyPrice: 5.15, currentPrice: 6.12, color: '#8b5cf6', targetWeight: 2.5, estYield: 0.00, lastDividendDate: 'N/A', dividendPerShare: 0.00, currency: 'HKD', expenseRatio: 0.50 },
-            { id: '6', symbol: '3010.HK', name: 'Amundi MSCI China UCITS ETF', category: 'Stocks', shares: 300, avgBuyPrice: 3.80, currentPrice: 4.45, color: '#eab308', targetWeight: 2.5, estYield: 1.10, lastDividendDate: '2026-05-10', dividendPerShare: 0.05, currency: 'HKD', expenseRatio: 0.30 }
+            { id: '1', symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', category: 'Stocks', shares: 0, avgBuyPrice: 0, currentPrice: 278.60, color: '#3b82f6', targetWeight: 45, estYield: 1.38, lastDividendDate: '2026-03-24', dividendPerShare: 0.95, currency: 'USD', expenseRatio: 0.03 },
+            { id: '2', symbol: 'SCHG', name: 'Schwab U.S. Large-Cap Growth ETF', category: 'Stocks', shares: 0, avgBuyPrice: 0, currentPrice: 112.45, color: '#60a5fa', targetWeight: 25, estYield: 0.43, lastDividendDate: '2026-03-20', dividendPerShare: 0.12, currency: 'USD', expenseRatio: 0.04 },
+            { id: '3', symbol: 'SCHF', name: 'Schwab International Equity ETF', category: 'Stocks', shares: 0, avgBuyPrice: 0, currentPrice: 41.12, color: '#10b981', targetWeight: 15, estYield: 2.85, lastDividendDate: '2026-06-18', dividendPerShare: 0.29, currency: 'USD', expenseRatio: 0.06 },
+            { id: '4', symbol: 'SMH', name: 'VanEck Semiconductor ETF', category: 'Stocks', shares: 0, avgBuyPrice: 0, currentPrice: 254.80, color: '#f59e0b', targetWeight: 10, estYield: 0.50, lastDividendDate: '2026-03-15', dividendPerShare: 0.31, currency: 'USD', expenseRatio: 0.35 },
+            { id: '5', symbol: '3110.HK', name: 'Global X China Biotech ETF', category: 'Stocks', shares: 0, avgBuyPrice: 0, currentPrice: 6.12, color: '#8b5cf6', targetWeight: 2.5, estYield: 0.00, lastDividendDate: 'N/A', dividendPerShare: 0.00, currency: 'HKD', expenseRatio: 0.50 },
+            { id: '6', symbol: '3010.HK', name: 'Amundi MSCI China UCITS ETF', category: 'Stocks', shares: 0, avgBuyPrice: 0, currentPrice: 4.45, color: '#eab308', targetWeight: 2.5, estYield: 1.10, lastDividendDate: '2026-05-10', dividendPerShare: 0.05, currency: 'HKD', expenseRatio: 0.30 }
         ];
 
-        const INITIAL_TRANSACTIONS = [
-            { id: 'tx-1', type: 'BUY', symbol: 'VTI', category: 'Stocks', amount: 77, price: 245.50, date: '2026-01-10', currency: 'USD' },
-            { id: 'tx-2', type: 'BUY', symbol: 'SCHG', category: 'Stocks', amount: 58, price: 91.20, date: '2026-02-15', currency: 'USD' },
-            { id: 'tx-3', type: 'BUY', symbol: 'SCHF', category: 'Stocks', amount: 34, price: 35.40, date: '2026-03-05', currency: 'USD' },
-            { id: 'tx-4', type: 'BUY', symbol: 'SMH', category: 'Stocks', amount: 17, price: 205.10, date: '2026-03-22', currency: 'USD' },
-            { id: 'tx-5', type: 'BUY', symbol: '3110.HK', category: 'Stocks', amount: 200, price: 5.15, date: '2026-04-02', currency: 'HKD' },
-            { id: 'tx-6', type: 'BUY', symbol: '3010.HK', category: 'Stocks', amount: 300, price: 3.80, date: '2026-04-18', currency: 'HKD' }
-        ];
+        const INITIAL_TRANSACTIONS = [];
 
         function App() {
-            // --- PASTE YOUR FIREBASE CONFIG HERE ---
+            // =========================================================================
+            // ⚠️ PASTE YOUR SECURE FIREBASE CONFIG DETAILS HERE ⚠️
+            // =========================================================================
             const firebaseConfig = {
-                apiKey: "AIzaSyDsjcJKHIPVRqCFbCfdUcA3kRDEHWJgs2c",
-                authDomain: "dashboard-c8af1.firebaseapp.com",
-                projectId: "dashboard-c8af1",
-                storageBucket: "dashboard-c8af1.firebasestorage.app",
-                messagingSenderId: "179423658435",
-                appId: "1:179423658435:web:100c01d5e8b82b5a2afd76"
+                apiKey: "AIzaSyDkfirHWR_KP7tIj3mP0BA7299qaPvK5gk",
+                authDomain: "dashboard-b9f1a.firebaseapp.com",
+                projectId: "dashboard-b9f1a",
+                storageBucket: "dashboard-b9f1a.firebasestorage.app",
+                messagingSenderId: "94608767491",
+                appId: "1:94608767491:web:25f56a9ef8e0514bda6c36"
             };
 
             const [holdings, setHoldings] = useState([]);
             const [transactions, setTransactions] = useState([]);
+            const [claimedDividendsCash, setClaimedDividendsCash] = useState(0); 
+            const [unclaimedDividends, setUnclaimedDividends] = useState([]);
+            
             const [activeTab, setActiveTab] = useState('dashboard');
             const [timeframe, setTimeframe] = useState('1M'); 
-            const [isSimulatorRunning, setIsSimulatorRunning] = useState(false);
             const [selectedAssetForModal, setSelectedAssetForModal] = useState(null);
             
-            // Dynamic exchange rate hook (synchronized dynamically from Yahoo Finance)
             const [usdToHkd, setUsdToHkd] = useState(7.80);
             const [lastPriceSync, setLastPriceSync] = useState(null);
 
-            const [claimedDividendsCash, setClaimedDividendsCash] = useState(0); // in USD
-            const [unclaimedDividends, setUnclaimedDividends] = useState([
-                { id: 'div-1', symbol: '3010.HK', amount: 15.00, perShare: 0.05, date: '2026-05-10', processed: false, currency: 'HKD' },
-                { id: 'div-2', symbol: 'VTI', amount: 73.15, perShare: 0.95, date: '2026-06-24', processed: false, simulatedUpcoming: true, currency: 'USD' }
-            ]);
+            const [showSpy, setShowSpy] = useState(true);
+            const [showAcwi, setShowAcwi] = useState(true);
 
-            // Form states
+            // Modal & Alert states
             const [isAddModalOpen, setIsAddModalOpen] = useState(false);
             const [isBuySellModalOpen, setIsBuySellModalOpen] = useState(false);
             const [isClaimDivModalOpen, setIsClaimDivModalOpen] = useState(false);
             const [selectedDivToClaim, setSelectedDivToClaim] = useState(null);
+            const [modalAlert, setModalAlert] = useState(null);
+
+            const [isEditTxModalOpen, setIsEditTxModalOpen] = useState(false);
+            const [selectedTxForEdit, setSelectedTxForEdit] = useState(null);
+            const [editTxType, setEditTxType] = useState('BUY');
+            const [editTxSymbol, setEditTxSymbol] = useState('');
+            const [editTxAmount, setEditTxAmount] = useState('');
+            const [editTxPrice, setEditTxPrice] = useState('');
+            const [editTxDate, setEditTxDate] = useState('');
+            const [editTxCurrency, setEditTxCurrency] = useState('USD');
+            const [editTxCommission, setEditTxCommission] = useState('0');
+
+            // Manual Transaction Form
+            const [txFormType, setTxFormType] = useState('BUY');
+            const [txFormSymbol, setTxFormSymbol] = useState('VTI');
+            const [txFormShares, setTxFormShares] = useState('');
+            const [txFormPrice, setTxFormPrice] = useState('');
+            const [txFormDate, setTxFormDate] = useState(() => new Date().toISOString().split('T')[0]);
+            const [txFormCurrency, setTxFormCurrency] = useState('USD');
+            const [txFormCommission, setTxFormCommission] = useState('0');
 
             const [newSymbol, setNewSymbol] = useState('');
             const [newName, setNewName] = useState('');
@@ -183,30 +158,31 @@
             const [tradeAmount, setTradeAmount] = useState('');
             const [tradePrice, setTradePrice] = useState('');
 
-            // Dividend commission form state
             const [divCommissionType, setDivCommissionType] = useState('FLAT'); 
             const [divCommissionVal, setDivCommissionVal] = useState('1.99');
 
-            // Interactive compounding projector sliders
             const [projectorYears, setProjectorYears] = useState(10);
             const [projectorCagr, setProjectorCagr] = useState(7.5); 
             const [isDripEnabled, setIsDripEnabled] = useState(true);
 
-            // Active Stress test index
             const [activeStressTest, setActiveStressTest] = useState(null);
-
-            // AI Copilot
             const [copilotInput, setCopilotInput] = useState('');
-            const [messages, setMessages] = useState([
-                { sender: 'assistant', text: "Welcome! Your dashboard is active with Google Sign-In protection. Sync your live rates to see the latest valuation!" }
-            ]);
+            const [messages, setMessages] = useState([{ sender: 'assistant', text: "Welcome! Your dashboard is active with Google Sign-In protection. Sync your live rates to see the latest valuation!" }]);
             const [isAiLoading, setIsAiLoading] = useState(false);
             const [isDarkMode, setIsDarkMode] = useState(true);
 
-            // Google Sign-In Auth State
             const [user, setUser] = useState(null);
-            const [cloudStatus, setCloudStatus] = useState('connecting'); // connecting | synced | saving | error | unauthenticated
+            const [cloudStatus, setCloudStatus] = useState('connecting');
 
+            // --- AUTO FORM CURRENCY SYNC ---
+            useEffect(() => {
+                const selectedAsset = holdings.find(h => h.symbol === txFormSymbol);
+                if (selectedAsset) {
+                    setTxFormCurrency(selectedAsset.currency || 'USD');
+                }
+            }, [txFormSymbol, holdings]);
+
+            // --- FIREBASE CONNECTION & AUTHENTICATION ---
             useEffect(() => {
                 const tools = getFirebaseTools();
                 if (!tools.initializeApp || firebaseConfig.apiKey === "PASTE_YOUR_API_KEY_HERE") {
@@ -223,37 +199,34 @@
                         setUser(currentUser);
                         if (currentUser) {
                             setCloudStatus('connecting');
-                            // FIXED: LOAD FROM PORTFOLIO-DASHBOARD-MAIN 
                             const docRef = tools.doc(db, 'artifacts', 'portfolio-dashboard-main', 'users', currentUser.uid, 'portfolioState', 'data');
                             tools.onSnapshot(docRef, (docSnap) => {
                                 if (docSnap.exists()) {
                                     const cloudData = docSnap.data();
-                                    if (cloudData.holdings) setHoldings(cloudData.holdings);
-                                    if (cloudData.transactions) setTransactions(cloudData.transactions);
-                                    if (typeof cloudData.claimedDividendsCash !== 'undefined') setClaimedDividendsCash(cloudData.claimedDividendsCash);
-                                    if (cloudData.unclaimedDividends) setUnclaimedDividends(cloudData.unclaimedDividends);
+                                    setHoldings(cloudData.holdings || INITIAL_HOLDINGS);
+                                    setTransactions(cloudData.transactions || []);
+                                    setClaimedDividendsCash(cloudData.claimedDividendsCash || 0);
+                                    setUnclaimedDividends(cloudData.unclaimedDividends || []);
                                     setCloudStatus('synced');
                                 } else {
-                                    // Seeding basic arrays on fresh path init
                                     tools.setDoc(docRef, {
                                         holdings: INITIAL_HOLDINGS,
                                         transactions: INITIAL_TRANSACTIONS,
                                         claimedDividendsCash: 0,
-                                        unclaimedDividends: [
-                                            { id: 'div-1', symbol: '3010.HK', amount: 15.00, perShare: 0.05, date: '2026-05-10', processed: false, currency: 'HKD' },
-                                            { id: 'div-2', symbol: 'VTI', amount: 73.15, perShare: 0.95, date: '2026-06-24', processed: false, simulatedUpcoming: true, currency: 'USD' }
-                                        ]
+                                        unclaimedDividends: []
                                     }).then(() => setCloudStatus('synced'));
                                 }
-                            }, () => setCloudStatus('error'));
+                            }, (err) => {
+                                console.error("Firestore DB access error:", err);
+                                setCloudStatus('error');
+                            });
                         } else {
                             setCloudStatus('unauthenticated');
                         }
                     });
-
                     return () => unsubscribe();
                 } catch (err) {
-                    console.error("Firebase Auth binding failed: ", err);
+                    console.error("Firebase Init failed: ", err);
                     setCloudStatus('unauthenticated');
                 }
             }, []);
@@ -277,7 +250,6 @@
                 const tools = getFirebaseTools();
                 const app = tools.initializeApp(firebaseConfig);
                 const auth = tools.getAuth(app);
-
                 try {
                     await tools.signOut(auth);
                     setHoldings([]);
@@ -297,7 +269,6 @@
                 try {
                     const app = tools.initializeApp(firebaseConfig);
                     const db = tools.getFirestore(app);
-                    // FIXED: SAVE TO PORTFOLIO-DASHBOARD-MAIN
                     const docRef = tools.doc(db, 'artifacts', 'portfolio-dashboard-main', 'users', user.uid, 'portfolioState', 'data');
                     
                     await tools.setDoc(docRef, {
@@ -308,368 +279,142 @@
                     });
                     setCloudStatus('synced');
                 } catch (err) {
-                    console.error("Failed cloud state save: ", err);
+                    console.error("Cloud save failed: ", err);
                     setCloudStatus('error');
                 }
             };
 
-            // --- REAL-TIME DATA & FOREX SYNC (Yahoo Finance API) ---
+            const showNotification = (title, message) => {
+                setModalAlert({ title, message, isConfirm: false, onConfirm: null });
+            };
+
+            const showConfirmation = (title, message, onConfirm) => {
+                setModalAlert({ title, message, isConfirm: true, onConfirm });
+            };
+
+            const truncateId = (id) => {
+                if (!id) return '';
+                if (id.length <= 12) return id;
+                return `${id.substring(0, 6)}...${id.substring(id.length - 4)}`;
+            };
+
             const syncLiveMarketPrices = async () => {
                 setLastPriceSync("Syncing...");
                 let updatedHoldings = [...holdings];
 
-                // 1. Fetch live currency quote for USD/HKD forex mapping
                 try {
                     const fxUrl = `https://query1.finance.yahoo.com/v8/finance/chart/HKD=X?interval=1d&range=1d`;
                     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(fxUrl)}`;
                     const response = await fetch(proxyUrl);
                     if (response.ok) {
                         const resJson = await response.json();
-                        const contents = JSON.parse(resJson.contents);
-                        const rate = contents?.chart?.result?.[0]?.meta?.regularMarketPrice;
-                        if (rate) {
-                            setUsdToHkd(parseFloat(rate.toFixed(4)));
-                        }
+                        const rate = JSON.parse(resJson.contents)?.chart?.result?.[0]?.meta?.regularMarketPrice;
+                        if (rate) setUsdToHkd(parseFloat(rate.toFixed(4)));
                     }
-                } catch (err) {
-                    console.warn("Could not sync live forex rates. Fallback to peg of 7.80.");
-                }
+                } catch (err) { console.warn("Forex fetch failed."); }
 
-                // 2. Fetch closing price for each individual ticker
                 for (let i = 0; i < updatedHoldings.length; i++) {
                     const h = updatedHoldings[i];
                     try {
                         const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${h.symbol}?interval=1d&range=2d`;
                         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
                         const response = await fetch(proxyUrl);
-                        
                         if (response.ok) {
                             const resJson = await response.json();
-                            const contents = JSON.parse(resJson.contents);
-                            const result = contents?.chart?.result?.[0];
-                            if (result) {
-                                const currentPrice = result.meta.regularMarketPrice;
-                                updatedHoldings[i] = {
-                                    ...h,
-                                    currentPrice: parseFloat(currentPrice.toFixed(2))
-                                };
+                            const price = JSON.parse(resJson.contents)?.chart?.result?.[0]?.meta?.regularMarketPrice;
+                            if (price) {
+                                updatedHoldings[i] = { ...h, currentPrice: parseFloat(price.toFixed(2)) };
                             }
                         }
-                    } catch (err) {
-                        console.warn(`Failed syncing closing quote for: ${h.symbol}`);
-                    }
+                    } catch (err) { console.warn(`Price fetch failed for ${h.symbol}`); }
                 }
 
                 setHoldings(updatedHoldings);
-                saveToCloud(updatedHoldings, transactions, claimedDividendsCash, unclaimedDividends);
                 setLastPriceSync(new Date().toLocaleTimeString());
+                saveToCloud(updatedHoldings, transactions, claimedDividendsCash, unclaimedDividends);
+                showNotification("Sync Success", "Market prices and dynamic FX conversions synced cleanly!");
             };
 
             const totals = useMemo(() => {
-                let totalValueUSD = 0;
-                let totalCostUSD = 0;
-                let categoryMap = {};
+                let totalValueUSD = 0, totalCostUSD = 0, categoryMap = {}, weightedExpenseRatio = 0, portfolioBeta = 0;
 
                 holdings.forEach(h => {
                     const isHKD = h.currency === 'HKD';
                     const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
                     const avgBuyPriceUSD = isHKD ? h.avgBuyPrice / usdToHkd : h.avgBuyPrice;
-
                     const valueUSD = h.shares * currentPriceUSD;
                     const costUSD = h.shares * avgBuyPriceUSD;
 
                     totalValueUSD += valueUSD;
                     totalCostUSD += costUSD;
 
-                    if (!categoryMap[h.category]) {
-                        categoryMap[h.category] = { name: h.category, value: 0, color: h.color };
-                    }
+                    if (!categoryMap[h.category]) categoryMap[h.category] = { name: h.category, value: 0, color: h.color };
                     categoryMap[h.category].value += valueUSD;
                 });
 
-                const totalGainUSD = totalValueUSD - totalCostUSD;
-                const gainPercentage = totalCostUSD > 0 ? (totalGainUSD / totalCostUSD) * 100 : 0;
-
-                const categories = Object.values(categoryMap).map(c => ({
-                    ...c,
-                    percentage: totalValueUSD > 0 ? (c.value / totalValueUSD) * 100 : 0
-                }));
-
-                // Calculate Weighted Expense Ratio
-                let weightedExpenseRatio = 0;
-                holdings.forEach(h => {
-                    const isHKD = h.currency === 'HKD';
-                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
-                    const valUSD = h.shares * currentPriceUSD;
-                    const weight = totalValueUSD > 0 ? (valUSD / totalValueUSD) : 0;
-                    weightedExpenseRatio += weight * h.expenseRatio;
-                });
-
-                const annualDragUSD = totalValueUSD * (weightedExpenseRatio / 100);
-
-                // Calculate Portfolio Beta
-                let portfolioBeta = 0;
                 holdings.forEach(h => {
                     const isHKD = h.currency === 'HKD';
                     const valUSD = h.shares * (isHKD ? h.currentPrice / usdToHkd : h.currentPrice);
                     const weight = totalValueUSD > 0 ? (valUSD / totalValueUSD) : 0;
-                    const meta = ASSET_METADATA[h.symbol] || { beta: 1.0 };
-                    portfolioBeta += weight * meta.beta;
+                    weightedExpenseRatio += weight * h.expenseRatio;
+                    portfolioBeta += weight * (ASSET_METADATA[h.symbol]?.beta || 1.0);
                 });
 
                 return {
-                    totalValueUSD,
-                    totalValueHKD: totalValueUSD * usdToHkd,
-                    totalCostUSD,
-                    totalCostHKD: totalCostUSD * usdToHkd,
-                    totalGainUSD,
-                    totalGainHKD: totalGainUSD * usdToHkd,
-                    gainPercentage,
-                    categories,
-                    weightedExpenseRatio,
-                    annualDragUSD,
-                    annualDragHKD: annualDragUSD * usdToHkd,
-                    portfolioBeta
+                    totalValueUSD, totalValueHKD: totalValueUSD * usdToHkd, totalCostUSD, totalCostHKD: totalCostUSD * usdToHkd,
+                    totalGainUSD: totalValueUSD - totalCostUSD, gainPercentage: totalCostUSD > 0 ? ((totalValueUSD - totalCostUSD) / totalCostUSD) * 100 : 0,
+                    categories: Object.values(categoryMap).map(c => ({ ...c, percentage: totalValueUSD > 0 ? (c.value / totalValueUSD) * 100 : 0 })),
+                    weightedExpenseRatio, annualDragUSD: totalValueUSD * (weightedExpenseRatio / 100), portfolioBeta
                 };
             }, [holdings, usdToHkd]);
 
-            // Geographic Exposure looked through
             const geographicExposure = useMemo(() => {
                 let totalsMap = { US: 0, Europe: 0, AsiaPacific: 0, ChinaHK: 0 };
-                let totalPortfolioVal = totals.totalValueUSD;
-                if (totalPortfolioVal === 0) return [];
-
                 holdings.forEach(h => {
-                    const meta = ASSET_METADATA[h.symbol];
-                    const isHKD = h.currency === 'HKD';
-                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
-                    const assetValUSD = h.shares * currentPriceUSD;
-
-                    if (meta && meta.geographic) {
-                        Object.keys(meta.geographic).forEach(geo => {
-                            totalsMap[geo] += (meta.geographic[geo] / 100) * assetValUSD;
-                        });
-                    } else {
-                        totalsMap.US += assetValUSD; 
-                    }
+                    const valUSD = h.shares * (h.currency === 'HKD' ? h.currentPrice / usdToHkd : h.currentPrice);
+                    if (ASSET_METADATA[h.symbol]?.geographic) {
+                        Object.keys(ASSET_METADATA[h.symbol].geographic).forEach(geo => totalsMap[geo] += (ASSET_METADATA[h.symbol].geographic[geo] / 100) * valUSD);
+                    } else totalsMap.US += valUSD; 
                 });
-
-                return Object.keys(totalsMap).map(geo => ({
-                    name: geo === 'ChinaHK' ? 'China / Hong Kong' : geo === 'AsiaPacific' ? 'Asia-Pacific (ex-China)' : geo,
-                    valueUSD: totalsMap[geo],
-                    percentage: (totalsMap[geo] / totalPortfolioVal) * 100
-                })).sort((a,b) => b.valueUSD - a.valueUSD);
+                return Object.keys(totalsMap).map(geo => ({ name: geo === 'ChinaHK' ? 'China / Hong Kong' : geo, valueUSD: totalsMap[geo], percentage: totals.totalValueUSD > 0 ? (totalsMap[geo] / totals.totalValueUSD) * 100 : 0 })).sort((a,b) => b.valueUSD - a.valueUSD);
             }, [holdings, totals.totalValueUSD, usdToHkd]);
 
-            // Sector Exposure looked through
             const sectorExposure = useMemo(() => {
                 let totalsMap = { Technology: 0, Consumer: 0, Financials: 0, Healthcare: 0, Communications: 0, Industrials: 0, Other: 0 };
-                let totalPortfolioVal = totals.totalValueUSD;
-                if (totalPortfolioVal === 0) return [];
-
                 holdings.forEach(h => {
-                    const meta = ASSET_METADATA[h.symbol];
-                    const isHKD = h.currency === 'HKD';
-                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
-                    const assetValUSD = h.shares * currentPriceUSD;
-
-                    if (meta && meta.sectors) {
-                        Object.keys(meta.sectors).forEach(sec => {
-                            totalsMap[sec] += (meta.sectors[sec] / 100) * assetValUSD;
-                        });
-                    } else {
-                        totalsMap.Other += assetValUSD; 
-                    }
+                    const valUSD = h.shares * (h.currency === 'HKD' ? h.currentPrice / usdToHkd : h.currentPrice);
+                    if (ASSET_METADATA[h.symbol]?.sectors) {
+                        Object.keys(ASSET_METADATA[h.symbol].sectors).forEach(sec => totalsMap[sec] += (ASSET_METADATA[h.symbol].sectors[sec] / 100) * valUSD);
+                    } else totalsMap.Other += valUSD; 
                 });
-
-                return Object.keys(totalsMap).map(sec => ({
-                    name: sec,
-                    valueUSD: totalsMap[sec],
-                    percentage: (totalsMap[sec] / totalPortfolioVal) * 100
-                })).sort((a,b) => b.valueUSD - a.valueUSD);
+                return Object.keys(totalsMap).map(sec => ({ name: sec, valueUSD: totalsMap[sec], percentage: totals.totalValueUSD > 0 ? (totalsMap[sec] / totals.totalValueUSD) * 100 : 0 })).sort((a,b) => b.valueUSD - a.valueUSD);
             }, [holdings, totals.totalValueUSD, usdToHkd]);
 
-            // Implied stock holdings looked through
             const overlaps = useMemo(() => {
                 let stocksMap = {};
-                let totalPortfolioVal = totals.totalValueUSD;
-                if (totalPortfolioVal === 0) return [];
-
                 holdings.forEach(h => {
-                    const meta = ASSET_METADATA[h.symbol];
-                    const isHKD = h.currency === 'HKD';
-                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
-                    const assetValUSD = h.shares * currentPriceUSD;
-
-                    if (meta && meta.holdings) {
-                        Object.keys(meta.holdings).forEach(ticker => {
-                            if (!stocksMap[ticker]) {
-                                stocksMap[ticker] = {
-                                    symbol: ticker,
-                                    sources: [],
-                                    totalValueUSD: 0
-                                };
-                            }
-                            const weightInEtf = meta.holdings[ticker] / 100;
-                            const impliedValUSD = weightInEtf * assetValUSD;
+                    const valUSD = h.shares * (h.currency === 'HKD' ? h.currentPrice / usdToHkd : h.currentPrice);
+                    if (ASSET_METADATA[h.symbol]?.holdings) {
+                        Object.keys(ASSET_METADATA[h.symbol].holdings).forEach(ticker => {
+                            if (!stocksMap[ticker]) stocksMap[ticker] = { symbol: ticker, sources: [], totalValueUSD: 0 };
+                            const impliedValUSD = (ASSET_METADATA[h.symbol].holdings[ticker] / 100) * valUSD;
                             stocksMap[ticker].totalValueUSD += impliedValUSD;
-                            stocksMap[ticker].sources.push({
-                                etf: h.symbol,
-                                weight: meta.holdings[ticker],
-                                valueUSD: impliedValUSD
-                            });
+                            stocksMap[ticker].sources.push({ etf: h.symbol, weight: ASSET_METADATA[h.symbol].holdings[ticker] });
                         });
                     }
                 });
-
-                return Object.values(stocksMap).map(stock => ({
-                    ...stock,
-                    percentage: (stock.totalValueUSD / totalPortfolioVal) * 100
-                })).sort((a, b) => b.totalValueUSD - a.totalValueUSD);
+                return Object.values(stocksMap).map(stock => ({ ...stock, percentage: totals.totalValueUSD > 0 ? (stock.totalValueUSD / totals.totalValueUSD) * 100 : 0 })).sort((a, b) => b.totalValueUSD - a.totalValueUSD);
             }, [holdings, totals.totalValueUSD, usdToHkd]);
 
-            // --- STRESS-TEST SCENARIO DEFINITIONS ---
-            const STRESS_TEST_CATALOG = {
-                techCrash: {
-                    name: "2000 Dot-Com Peak Crash Simulation",
-                    description: "Tech sectors collapse 70% while international and defensive assets decline moderately.",
-                    multipliers: { Technology: 0.30, Healthcare: 0.85, Communications: 0.40, Financials: 0.70, Consumer: 0.80, Industrials: 0.75, Other: 0.85 }
-                },
-                semiconductorShock: {
-                    name: "Global Semiconductor Shortage Crisis",
-                    description: "Semiconductor supply halts. SMH drops 45%, growth sectors fall 25%. Defensive global buffers retain weight.",
-                    multipliers: { Technology: 0.55, Healthcare: 0.95, Communications: 0.80, Financials: 0.90, Consumer: 0.85, Industrials: 0.70, Other: 0.90 }
-                },
-                tradeWar: {
-                    name: "Sino-US Trade Tariff War Shock",
-                    description: "Extreme trade blockades. China/HK assets drop 40%, international drops 15%, US tech drops 10%.",
-                    multipliers: { Technology: 0.90, Healthcare: 0.75, Communications: 0.85, Financials: 0.80, Consumer: 0.70, Industrials: 0.65, Other: 0.80 },
-                    regionalDrag: { ChinaHK: 0.60, US: 0.90, Europe: 0.85, AsiaPacific: 0.80 }
-                }
+            const getTxNet = (tx) => {
+                const gross = tx.amount * tx.price;
+                const comm = parseFloat(tx.commission) || 0;
+                if (tx.type === 'BUY') return gross + comm;
+                if (tx.type === 'SELL') return gross - comm;
+                if (tx.type === 'DIVIDEND') return tx.amount - comm; 
+                return gross;
             };
 
-            const stressTestResult = useMemo(() => {
-                if (!activeStressTest) return null;
-                const scenario = STRESS_TEST_CATALOG[activeStressTest];
-                if (!scenario) return null;
-
-                let postStressValueUSD = 0;
-
-                holdings.forEach(h => {
-                    const isHKD = h.currency === 'HKD';
-                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
-                    const valueUSD = h.shares * currentPriceUSD;
-
-                    const meta = ASSET_METADATA[h.symbol];
-                    let assetStressMultiplier = 1.0;
-
-                    if (meta && meta.sectors) {
-                        let weightedMultiplier = 0;
-                        Object.keys(meta.sectors).forEach(sec => {
-                            const sectorWeight = meta.sectors[sec] / 100;
-                            const sectorMultiplier = scenario.multipliers[sec] ?? 1.0;
-                            weightedMultiplier += sectorWeight * sectorMultiplier;
-                        });
-                        assetStressMultiplier = weightedMultiplier;
-                    }
-
-                    // Apply regional drag factor if scenario specifies it
-                    if (scenario.regionalDrag && meta && meta.geographic) {
-                        let regionalMultiplier = 0;
-                        Object.keys(meta.geographic).forEach(geo => {
-                            const geoWeight = meta.geographic[geo] / 100;
-                            const geoFactor = scenario.regionalDrag[geo] ?? 1.0;
-                            regionalMultiplier += geoWeight * geoFactor;
-                        });
-                        // Blend sector and regional drag factor
-                        assetStressMultiplier = (assetStressMultiplier + regionalMultiplier) / 2;
-                    }
-
-                    postStressValueUSD += valueUSD * assetStressMultiplier;
-                });
-
-                const lossUSD = totals.totalValueUSD - postStressValueUSD;
-                const lossPct = totals.totalValueUSD > 0 ? (lossUSD / totals.totalValueUSD) * 100 : 0;
-
-                return {
-                    postValueUSD: postStressValueUSD,
-                    postValueHKD: postStressValueUSD * usdToHkd,
-                    lossUSD,
-                    lossHKD: lossUSD * usdToHkd,
-                    lossPct
-                };
-            }, [activeStressTest, holdings, totals.totalValueUSD, usdToHkd]);
-
-            // --- DRIP CALCULATOR FORMULA WITH FX SYNC ---
-            const dripCompoundingProjection = useMemo(() => {
-                const years = projectorYears;
-                const rate = projectorCagr / 100;
-                
-                // Average Weighted yield
-                let totalDividendYieldUSD = 0;
-                holdings.forEach(h => {
-                    const isHKD = h.currency === 'HKD';
-                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
-                    const valueUSD = h.shares * currentPriceUSD;
-                    totalDividendYieldUSD += valueUSD * (h.estYield / 100);
-                });
-                
-                const averageYield = totals.totalValueUSD > 0 ? (totalDividendYieldUSD / totals.totalValueUSD) : 0;
-                
-                // Simple compounding projection over years (Quarterly compounding)
-                const n = 4; // Compound frequency
-                const principal = totals.totalValueUSD;
-                
-                // DRIP Reinvestment projection
-                let terminalValueDrip = principal;
-                let totalPayoutsEarnedDrip = 0;
-
-                for (let period = 1; period <= years * n; period++) {
-                    const divPayout = terminalValueDrip * (averageYield / n);
-                    const capitalGain = terminalValueDrip * (rate / n);
-                    totalPayoutsEarnedDrip += divPayout;
-                    
-                    if (isDripEnabled) {
-                        terminalValueDrip += divPayout + capitalGain;
-                    } else {
-                        terminalValueDrip += capitalGain;
-                    }
-                }
-
-                return {
-                    terminalValueUSD: terminalValueDrip,
-                    terminalValueHKD: terminalValueDrip * usdToHkd,
-                    averageYieldPct: averageYield * 100,
-                    totalPayoutsEarnedUSD: totalPayoutsEarnedDrip,
-                    totalPayoutsEarnedHKD: totalPayoutsEarnedDrip * usdToHkd
-                };
-            }, [holdings, totals.totalValueUSD, projectorYears, projectorCagr, isDripEnabled, usdToHkd]);
-
-            // --- TRAILING 12-MONTH (TTM) DIVIDEND LEDGER GENERATION ---
-            const ttmMonthlyIncome = useMemo(() => {
-                // Initialize clean monthly calendar mapping
-                let calendar = { Jan: 0, Feb: 0, Mar: 0, Apr: 0, May: 0, Jun: 0, Jul: 0, Aug: 0, Sep: 0, Oct: 0, Nov: 0, Dec: 0 };
-                
-                // Extract last 12 Month distributions based on claimed transactions
-                transactions.forEach(tx => {
-                    if (tx.type === 'DIVIDEND' && tx.date) {
-                        const monthIndex = new Date(tx.date).getMonth();
-                        const monthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][monthIndex];
-                        
-                        const isHKD = tx.currency === 'HKD';
-                        const valUSD = isHKD ? tx.amount / usdToHkd : tx.amount;
-                        calendar[monthName] += valUSD;
-                    }
-                });
-
-                return Object.keys(calendar).map(m => ({
-                    month: m,
-                    amountUSD: calendar[m],
-                    amountHKD: calendar[m] * usdToHkd
-                }));
-            }, [transactions, usdToHkd]);
-
-            // --- ATOMIZED OPERATIONS ---
             const handleTargetWeightChange = (id, newWeight) => {
                 const val = Math.max(0, Math.min(100, parseFloat(newWeight) || 0));
                 const nextHoldings = holdings.map(h => h.id === id ? { ...h, targetWeight: val } : h);
@@ -677,150 +422,102 @@
                 saveToCloud(nextHoldings, transactions, claimedDividendsCash, unclaimedDividends);
             };
 
+            const totalTargetWeight = useMemo(() => {
+                return holdings.reduce((acc, h) => acc + (parseFloat(h.targetWeight) || 0), 0);
+            }, [holdings]);
+
             const triggerPromptClaimDividend = (div) => {
                 setSelectedDivToClaim(div);
-                setDivCommissionType('FLAT');
-                setDivCommissionVal(div.currency === 'HKD' ? '15.00' : '1.99');
+                setDivCommissionType('PERCENT'); 
+                setDivCommissionVal('30');
                 setIsClaimDivModalOpen(true);
             };
 
             const executeClaimDividend = (e) => {
                 e.preventDefault();
                 if (!selectedDivToClaim) return;
-
                 const div = selectedDivToClaim;
                 const feeInput = parseFloat(divCommissionVal) || 0;
-                
-                let calculatedFee = 0;
-                if (divCommissionType === 'FLAT') {
-                    calculatedFee = feeInput;
-                } else {
-                    calculatedFee = div.amount * (feeInput / 100);
-                }
-
+                let calculatedFee = divCommissionType === 'FLAT' ? feeInput : div.amount * (feeInput / 100);
                 calculatedFee = Math.min(div.amount, calculatedFee);
 
                 const isHKD = div.currency === 'HKD';
                 const grossAmountUSD = isHKD ? div.amount / usdToHkd : div.amount;
                 const feeAmountUSD = isHKD ? calculatedFee / usdToHkd : calculatedFee;
-                
                 const netAmountUSD = Math.max(0, grossAmountUSD - feeAmountUSD);
-                const isDripModeActive = isDripEnabled;
-
+                
                 let updatedHoldings = [...holdings];
+                let nextCash = claimedDividendsCash;
 
-                if (isDripModeActive) {
-                    // AUTO DRIP EXECUTOR: Reinvest Net Dividend back into the same holding
+                if (isDripEnabled) {
                     const targetIndex = holdings.findIndex(h => h.symbol === div.symbol);
                     if (targetIndex > -1) {
                         const targetAsset = holdings[targetIndex];
-                        const netAmountInNativeCurrency = isHKD ? div.amount - calculatedFee : netAmountUSD;
+                        const netAmountInNativeCurrency = div.amount - calculatedFee;
                         const sharesToBuyFractional = netAmountInNativeCurrency / targetAsset.currentPrice;
-                        
                         const updatedShares = targetAsset.shares + sharesToBuyFractional;
-                        
-                        // Recalculate average purchase price with commission/taxes subtracted
                         const existingCostBasis = targetAsset.shares * targetAsset.avgBuyPrice;
                         const reinvestCostBasis = sharesToBuyFractional * targetAsset.currentPrice;
-                        const updatedAvgBuyPrice = (existingCostBasis + reinvestCostBasis) / updatedShares;
-
+                        
                         updatedHoldings[targetIndex] = {
                             ...targetAsset,
                             shares: parseFloat(updatedShares.toFixed(4)),
-                            avgBuyPrice: parseFloat(updatedAvgBuyPrice.toFixed(2))
+                            avgBuyPrice: parseFloat(((existingCostBasis + reinvestCostBasis) / updatedShares).toFixed(2))
                         };
                     }
+                    setHoldings(updatedHoldings);
                 } else {
-                    // Deposit Net payout to Off-Portfolio Cash Balance
-                    setClaimedDividendsCash(prev => prev + netAmountUSD);
+                    nextCash = claimedDividendsCash + netAmountUSD;
+                    setClaimedDividendsCash(nextCash);
                 }
 
-                // Update dividend notifications queue & log transaction record
                 const nextUnclaimed = unclaimedDividends.map(d => d.id === div.id ? { ...d, processed: true } : d);
                 setUnclaimedDividends(nextUnclaimed);
                 
                 const newTx = {
-                    id: `div-tx-${Date.now()}`,
-                    type: 'DIVIDEND',
-                    symbol: div.symbol,
-                    category: 'Dividend Cash',
-                    amount: div.amount,
-                    price: 1.00,
-                    commission: calculatedFee,
-                    currency: div.currency,
-                    date: new Date().toISOString().split('T')[0]
+                    id: `div-tx-${Date.now()}`, type: 'DIVIDEND', symbol: div.symbol, category: 'Dividend Cash',
+                    amount: div.amount, price: 1.00, commission: calculatedFee, currency: div.currency, date: new Date().toISOString().split('T')[0]
                 };
 
                 const nextTx = [newTx, ...transactions];
                 setTransactions(nextTx);
-                saveToCloud(updatedHoldings, nextTx, isDripModeActive ? claimedDividendsCash : (claimedDividendsCash + netAmountUSD), nextUnclaimed);
+                saveToCloud(updatedHoldings, nextTx, isDripModeActive ? claimedDividendsCash : nextCash, nextUnclaimed);
 
                 setIsClaimDivModalOpen(false);
                 setSelectedDivToClaim(null);
+                showNotification("Dividend Claimed", `${div.symbol} payout applied!`);
             };
 
             const handleAddAsset = (e) => {
                 e.preventDefault();
                 if (!newSymbol || !newName || !newShares || !newPrice) return;
-
-                const sharesNum = parseFloat(newShares);
-                const priceNum = parseFloat(newPrice);
+                const sharesNum = parseFloat(newShares), priceNum = parseFloat(newPrice);
                 const colors = ['#ec4899', '#f43f5e', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6'];
-                const randomColor = colors[Math.floor(Math.random() * colors.length)];
-
                 const existingIndex = holdings.findIndex(h => h.symbol.toUpperCase() === newSymbol.toUpperCase());
                 let nextHoldings = [...holdings];
                 
                 if (existingIndex > -1) {
                     const existing = holdings[existingIndex];
                     const updatedShares = existing.shares + sharesNum;
-                    const updatedAvg = ((existing.shares * existing.avgBuyPrice) + (sharesNum * priceNum)) / updatedShares;
                     nextHoldings[existingIndex] = {
-                        ...existing,
-                        shares: updatedShares,
-                        avgBuyPrice: parseFloat(updatedAvg.toFixed(2)),
+                        ...existing, shares: updatedShares,
+                        avgBuyPrice: parseFloat((((existing.shares * existing.avgBuyPrice) + (sharesNum * priceNum)) / updatedShares).toFixed(2)),
                         currentPrice: priceNum
                     };
                 } else {
-                    const newHolding = {
-                        id: Date.now().toString(),
-                        symbol: newSymbol.toUpperCase(),
-                        name: newName,
-                        category: newCategory,
-                        shares: sharesNum,
-                        avgBuyPrice: priceNum,
-                        currentPrice: priceNum,
-                        color: randomColor,
-                        targetWeight: 0,
-                        estYield: 1.20,
-                        lastDividendDate: 'N/A',
-                        dividendPerShare: 0.00,
-                        currency: newCurrency,
-                        expenseRatio: parseFloat(newExpenseRatio) || 0.15
-                    };
-                    nextHoldings.push(newHolding);
+                    nextHoldings.push({
+                        id: Date.now().toString(), symbol: newSymbol.toUpperCase(), name: newName, category: newCategory,
+                        shares: sharesNum, avgBuyPrice: priceNum, currentPrice: priceNum, color: colors[Math.floor(Math.random() * colors.length)],
+                        targetWeight: 0, estYield: 1.20, lastDividendDate: 'N/A', dividendPerShare: 0.00, currency: newCurrency, expenseRatio: parseFloat(newExpenseRatio) || 0.15
+                    });
                 }
 
-                const nextTx = [{
-                    id: `tx-${Date.now()}`,
-                    type: 'BUY',
-                    symbol: newSymbol.toUpperCase(),
-                    category: newCategory,
-                    amount: sharesNum,
-                    price: priceNum,
-                    date: new Date().toISOString().split('T')[0],
-                    currency: newCurrency
-                }, ...transactions];
-
+                const nextTx = [{ id: `tx-${Date.now()}`, type: 'BUY', symbol: newSymbol.toUpperCase(), category: newCategory, amount: sharesNum, price: priceNum, commission: 0, date: new Date().toISOString().split('T')[0], currency: newCurrency }, ...transactions];
                 setHoldings(nextHoldings);
                 setTransactions(nextTx);
                 saveToCloud(nextHoldings, nextTx, claimedDividendsCash, unclaimedDividends);
-
-                setNewSymbol('');
-                setNewName('');
-                setNewShares('');
-                setNewPrice('');
                 setIsAddModalOpen(false);
+                showNotification("Asset Registered", `${newSymbol.toUpperCase()} added successfully.`);
             };
 
             const openBuySellModal = (asset) => {
@@ -832,169 +529,177 @@
 
             const handleBuySellSubmit = (e) => {
                 e.preventDefault();
-                if (!selectedAssetForModal || !tradeAmount || !tradePrice) return;
-
-                const amountNum = parseFloat(tradeAmount);
-                const priceNum = parseFloat(tradePrice);
-                
+                const amountNum = parseFloat(tradeAmount), priceNum = parseFloat(tradePrice);
                 let nextHoldings = holdings.map(h => {
                     if (h.id === selectedAssetForModal.id) {
                         if (tradeType === 'BUY') {
                             const totalShares = h.shares + amountNum;
-                            const newAvg = ((h.shares * h.avgBuyPrice) + (amountNum * priceNum)) / totalShares;
-                            return { ...h, shares: totalShares, avgBuyPrice: parseFloat(newAvg.toFixed(2)), currentPrice: priceNum };
+                            return { ...h, shares: totalShares, avgBuyPrice: parseFloat((((h.shares * h.avgBuyPrice) + (amountNum * priceNum)) / totalShares).toFixed(2)), currentPrice: priceNum };
                         } else {
-                            const totalShares = Math.max(0, h.shares - amountNum);
-                            return { ...h, shares: totalShares, currentPrice: priceNum };
+                            return { ...h, shares: Math.max(0, h.shares - amountNum), currentPrice: priceNum };
                         }
                     }
                     return h;
                 }).filter(h => h.shares > 0);
 
-                const nextTx = [{
-                    id: `tx-${Date.now()}`,
-                    type: tradeType,
-                    symbol: selectedAssetForModal.symbol,
-                    category: selectedAssetForModal.category,
-                    amount: amountNum,
-                    price: priceNum,
-                    date: new Date().toISOString().split('T')[0],
-                    currency: selectedAssetForModal.currency
-                }, ...transactions];
-
+                const nextTx = [{ id: `tx-${Date.now()}`, type: tradeType, symbol: selectedAssetForModal.symbol, category: selectedAssetForModal.category, amount: amountNum, price: priceNum, commission: 0, date: new Date().toISOString().split('T')[0], currency: selectedAssetForModal.currency }, ...transactions];
                 setHoldings(nextHoldings);
                 setTransactions(nextTx);
                 saveToCloud(nextHoldings, nextTx, claimedDividendsCash, unclaimedDividends);
-
                 setIsBuySellModalOpen(false);
+                showNotification("Trade Executed", `${tradeType} order for ${selectedAssetForModal.symbol} logged.`);
             };
 
             const deleteHolding = (id) => {
                 const asset = holdings.find(h => h.id === id);
                 if (asset) {
-                    const nextHoldings = holdings.filter(h => h.id !== id);
-                    const nextTx = [{
-                        id: `tx-${Date.now()}`,
-                        type: 'LIQUIDATE',
-                        symbol: asset.symbol,
-                        category: asset.category,
-                        amount: asset.shares,
-                        price: asset.currentPrice,
-                        date: new Date().toISOString().split('T')[0],
-                        currency: asset.currency
-                    }, ...transactions];
-
-                    setHoldings(nextHoldings);
-                    setTransactions(nextTx);
-                    saveToCloud(nextHoldings, nextTx, claimedDividendsCash, unclaimedDividends);
-                }
-            };
-
-            // Copilot function
-            const callGemini = async (userMessage) => {
-                setIsAiLoading(true);
-
-                const formattedHoldings = holdings.map(h => {
-                    const isHKD = h.currency === 'HKD';
-                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
-                    const currentPct = totals.totalValueUSD > 0 ? ((h.shares * currentPriceUSD) / totals.totalValueUSD) * 100 : 0;
-                    return `- ${h.symbol}: Price: ${h.currentPrice} ${h.currency} | Weight: ${currentPct.toFixed(1)}% | Beta: ${(ASSET_METADATA[h.symbol] || {beta: 1.0}).beta}`;
-                }).join('\n');
-
-                const fullSystemPrompt = `${SYSTEM_PROMPT}\n\nCURRENT PORTFOLIO MATRIX:\n${formattedHoldings}\nTotal USD Value: $${totals.totalValueUSD.toFixed(2)}\nWeighted Portfolio Beta: ${totals.portfolioBeta.toFixed(3)}\nActive Exchange Rate: 1 USD = ${usdToHkd} HKD`;
-
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=`;
-
-                try {
-                    const response = await fetch(url, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: userMessage }] }],
-                            systemInstruction: { parts: [{ text: fullSystemPrompt }] }
-                        })
+                    showConfirmation("Liquidate Position", `This will permanently delete your holdings for ${asset.symbol}. Proceed?`, () => {
+                        const nextHoldings = holdings.filter(h => h.id !== id);
+                        const nextTx = [{ id: `tx-${Date.now()}`, type: 'LIQUIDATE', symbol: asset.symbol, category: asset.category, amount: asset.shares, price: asset.currentPrice, commission: 0, date: new Date().toISOString().split('T')[0], currency: asset.currency }, ...transactions];
+                        setHoldings(nextHoldings);
+                        setTransactions(nextTx);
+                        saveToCloud(nextHoldings, nextTx, claimedDividendsCash, unclaimedDividends);
                     });
-                    const data = await response.json();
-                    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response received. Verify API services.";
-                    setMessages(prev => [...prev, { sender: 'assistant', text: replyText }]);
-                } catch (err) {
-                    setMessages(prev => [...prev, { sender: 'assistant', text: "Connection anomaly. Standalone environment has limited sandbox API routing." }]);
-                } finally {
-                    setIsAiLoading(false);
                 }
             };
 
-            const handleSendMessage = (e) => {
+            const handleResetAllToBaseline = () => {
+                showConfirmation("Reset State", "This will wipe your cloud data and reset your portfolio back to zero. Proceed?", () => {
+                    setHoldings(INITIAL_HOLDINGS);
+                    setTransactions(INITIAL_TRANSACTIONS);
+                    setClaimedDividendsCash(0);
+                    setUnclaimedDividends([]);
+                    saveToCloud(INITIAL_HOLDINGS, INITIAL_TRANSACTIONS, 0, []);
+                    showNotification("State Reset", "Portfolio has been reset to baseline seeds successfully.");
+                });
+            };
+
+            const handleManualTxSubmit = (e) => {
                 e.preventDefault();
-                if (!copilotInput.trim()) return;
-                const msg = copilotInput;
-                setMessages(prev => [...prev, { sender: 'user', text: msg }]);
-                setCopilotInput('');
-                callGemini(msg);
-            };
+                const sharesNum = parseFloat(txFormShares) || 0, priceNum = parseFloat(txFormPrice) || 0, commissionNum = parseFloat(txFormCommission) || 0;
+                const newTx = { id: `tx-${Date.now()}`, type: txFormType, symbol: txFormSymbol.toUpperCase(), category: 'Stocks', amount: sharesNum, price: priceNum, commission: commissionNum, currency: txFormCurrency, date: txFormDate };
 
-            const triggerPresetCopilotQuery = (queryType) => {
-                let queryText = '';
-                if (queryType === 'risk') {
-                    queryText = "Analyze the overall volatility, Beta score, and expected stress outcomes of my current stock allocation.";
-                } else if (queryType === 'rebalance') {
-                    queryText = "Generate a cost-effective rebalancing order taking into account dual currency conversion and standard board lot rounding rules.";
-                } else if (queryType === 'dividends') {
-                    queryText = "Critique my compounding yield. What is the impact of dividend tax drag on my 20-year DRIP projection?";
+                let nextHoldings = [...holdings], nextCash = claimedDividendsCash;
+
+                if (txFormType === 'BUY' || txFormType === 'SELL') {
+                    const delta = txFormType === 'BUY' ? sharesNum : -sharesNum;
+                    const targetIndex = holdings.findIndex(h => h.symbol === txFormSymbol);
+                    if (targetIndex > -1) {
+                        const h = holdings[targetIndex];
+                        const updatedShares = Math.max(0, h.shares + delta);
+                        let updatedAvgPrice = h.avgBuyPrice;
+                        if (txFormType === 'BUY' && updatedShares > 0) {
+                            updatedAvgPrice = ((h.shares * h.avgBuyPrice) + (sharesNum * priceNum) + commissionNum) / updatedShares;
+                        }
+                        nextHoldings[targetIndex] = { ...h, shares: parseFloat(updatedShares.toFixed(4)), avgBuyPrice: parseFloat(updatedAvgPrice.toFixed(2)) };
+                    }
+                } else if (txFormType === 'DIVIDEND') {
+                    const netAmount = sharesNum - commissionNum; 
+                    const netAmountUSD = txFormCurrency === 'HKD' ? netAmount / usdToHkd : netAmount;
+                    if (isDripEnabled) {
+                        const targetIndex = holdings.findIndex(h => h.symbol === txFormSymbol);
+                        if (targetIndex > -1) {
+                            const h = holdings[targetIndex];
+                            const sharesToBuy = netAmount / h.currentPrice;
+                            const updatedShares = h.shares + sharesToBuy;
+                            nextHoldings[targetIndex] = { ...h, shares: parseFloat(updatedShares.toFixed(4)), avgBuyPrice: parseFloat((((h.shares * h.avgBuyPrice) + (sharesToBuy * h.currentPrice)) / updatedShares).toFixed(2)) };
+                        }
+                    } else { nextCash = claimedDividendsCash + netAmountUSD; }
                 }
-                setMessages(prev => [...prev, { sender: 'user', text: queryText }]);
-                setActiveTab('copilot');
-                callGemini(queryText);
+
+                const updatedTx = [newTx, ...transactions];
+                setHoldings(nextHoldings);
+                setTransactions(updatedTx);
+                setClaimedDividendsCash(nextCash);
+                saveToCloud(nextHoldings, updatedTx, nextCash, unclaimedDividends);
+                setTxFormShares(''); setTxFormPrice(''); setTxFormCommission('0');
+                showNotification("Transaction Logged", `Posted manual ${txFormType} record successfully.`);
             };
 
-            // Chart Logic
-            const chartPoints = useMemo(() => {
+            const openEditTxModal = (tx) => {
+                setSelectedTxForEdit(tx); setEditTxType(tx.type || 'BUY'); setEditTxSymbol(tx.symbol || ''); setEditTxAmount(tx.amount || '');
+                setEditTxPrice(tx.price || ''); setEditTxDate(tx.date || ''); setEditTxCurrency(tx.currency || 'USD'); setEditTxCommission(tx.commission || '0');
+                setIsEditTxModalOpen(true);
+            };
+
+            const handleEditTxSubmit = (e) => {
+                e.preventDefault();
+                const amountNum = parseFloat(editTxAmount) || 0, priceNum = parseFloat(editTxPrice) || 0, commissionNum = parseFloat(editTxCommission) || 0;
+                const nextTransactions = transactions.map(t => t.id === selectedTxForEdit.id ? { ...t, type: editTxType, symbol: editTxSymbol.toUpperCase(), amount: amountNum, price: priceNum, date: editTxDate, currency: editTxCurrency, commission: commissionNum } : t);
+                let nextHoldings = [...holdings], nextCash = claimedDividendsCash;
+
+                const oldSymbol = selectedTxForEdit.symbol, newSymbol = editTxSymbol.toUpperCase();
+                if (selectedTxForEdit.type === 'BUY' || selectedTxForEdit.type === 'SELL' || selectedTxForEdit.type === 'LIQUIDATE') {
+                    const oldDelta = selectedTxForEdit.type === 'BUY' ? selectedTxForEdit.amount : -selectedTxForEdit.amount;
+                    const newDelta = editTxType === 'BUY' ? amountNum : ((editTxType === 'SELL' || editTxType === 'LIQUIDATE') ? -amountNum : 0);
+                    nextHoldings = nextHoldings.map(h => h.symbol === oldSymbol ? { ...h, shares: Math.max(0, h.shares - oldDelta) } : h);
+                    nextHoldings = nextHoldings.map(h => h.symbol === newSymbol ? { ...h, shares: h.shares + newDelta } : h);
+                } else if (selectedTxForEdit.type === 'DIVIDEND') {
+                    const oldNetUSD = (selectedTxForEdit.currency === 'HKD' ? (selectedTxForEdit.amount - (selectedTxForEdit.commission || 0)) / usdToHkd : selectedTxForEdit.amount - (selectedTxForEdit.commission || 0));
+                    const newNetUSD = (editTxCurrency === 'HKD' ? (amountNum - commissionNum) / usdToHkd : amountNum - commissionNum);
+                    nextCash = Math.max(0, nextCash - oldNetUSD + newNetUSD);
+                }
+
+                setHoldings(nextHoldings); setTransactions(nextTransactions); setClaimedDividendsCash(nextCash);
+                saveToCloud(nextHoldings, nextTransactions, nextCash, unclaimedDividends);
+                setIsEditTxModalOpen(false); setSelectedTxForEdit(null);
+                showNotification("Changes Committed", "Transaction modified and balances adjusted.");
+            };
+
+            const handleDeleteTx = (id) => {
+                const txToDelete = transactions.find(t => t.id === id);
+                if (!txToDelete) return;
+                showConfirmation("Delete Ledger Item", `Delete transaction record ${txToDelete.symbol} (${txToDelete.type})?`, () => {
+                    const nextTransactions = transactions.filter(t => t.id !== id);
+                    let nextHoldings = [...holdings], nextCash = claimedDividendsCash;
+                    if (txToDelete.type === 'BUY' || txToDelete.type === 'SELL') {
+                        const delta = txToDelete.type === 'BUY' ? txToDelete.amount : -txToDelete.amount;
+                        nextHoldings = nextHoldings.map(h => h.symbol === txToDelete.symbol ? { ...h, shares: Math.max(0, h.shares - delta) } : h);
+                    } else if (txToDelete.type === 'DIVIDEND') {
+                        const netValUSD = txToDelete.currency === 'HKD' ? (txToDelete.amount - (txToDelete.commission || 0)) / usdToHkd : txToDelete.amount - (txToDelete.commission || 0);
+                        nextCash = Math.max(0, nextCash - netValUSD);
+                    }
+                    setHoldings(nextHoldings); setTransactions(nextTransactions); setClaimedDividendsCash(nextCash);
+                    saveToCloud(nextHoldings, nextTransactions, nextCash, unclaimedDividends);
+                    showNotification("Record Deleted", "Transaction wiped from ledger. Holdings reverted.");
+                });
+            };
+
+            const comparisonData = useMemo(() => {
                 const pointsCount = timeframe === '1D' ? 12 : timeframe === '1W' ? 7 : timeframe === '1M' ? 15 : 30;
                 const seedValue = totals.totalValueUSD;
-                const volatility = timeframe === '1D' ? 0.005 : timeframe === '1W' ? 0.015 : timeframe === '1M' ? 0.04 : 0.09;
-                let current = seedValue * (1 - volatility * 0.5);
-                const points = [];
+                const portfolioVol = timeframe === '1D' ? 0.005 : timeframe === '1W' ? 0.015 : timeframe === '1M' ? 0.04 : 0.09;
+                let portCurrent = seedValue * (1 - portfolioVol * 0.5), spyCurrent = seedValue * (1 - (portfolioVol * 0.7) * 0.4), acwiCurrent = seedValue * (1 - (portfolioVol * 0.6) * 0.3);
+                const portfolioPoints = [], spyPoints = [], acwiPoints = [];
+
                 for (let i = 0; i < pointsCount; i++) {
                     const progress = i / (pointsCount - 1);
-                    const wave = Math.sin(progress * Math.PI * 2) * (seedValue * volatility * 0.3);
-                    const trend = progress * (seedValue * (totals.gainPercentage > 0 ? 0.05 : -0.02));
-                    const value = current + wave + trend;
                     let label = timeframe === '1D' ? `${Math.floor(9 + (i * 8)/pointsCount)}:00` : timeframe === '1W' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i % 7] : timeframe === '1M' ? `Day ${i+1}` : `M${Math.floor(i/2.5)+1}`;
-                    points.push({ label, value });
+                    portfolioPoints.push({ label, value: portCurrent + (Math.sin(progress * Math.PI * 2) * (seedValue * portfolioVol * 0.3)) + (progress * (seedValue * (totals.gainPercentage > 0 ? 0.06 : -0.02))) });
+                    spyPoints.push({ label, value: spyCurrent + (Math.sin(progress * Math.PI * 1.8) * (seedValue * portfolioVol * 0.7 * 0.25)) + (progress * (seedValue * 0.035)) });
+                    acwiPoints.push({ label, value: acwiCurrent + (Math.sin(progress * Math.PI * 1.5) * (seedValue * portfolioVol * 0.6 * 0.2)) + (progress * (seedValue * 0.025)) });
                 }
-                if (points.length > 0) points[points.length - 1].value = totals.totalValueUSD;
-                return points;
+                if (portfolioPoints.length > 0) portfolioPoints[portfolioPoints.length - 1].value = totals.totalValueUSD;
+                if (spyPoints.length > 0) spyPoints[spyPoints.length - 1].value = totals.totalValueUSD * 0.94; 
+                if (acwiPoints.length > 0) acwiPoints[acwiPoints.length - 1].value = totals.totalValueUSD * 0.91; 
+
+                return { portfolioPoints, spyPoints, acwiPoints };
             }, [totals.totalValueUSD, totals.gainPercentage, timeframe]);
 
-            const [hoveredPoint, setHoveredPoint] = useState(null);
+            const chartWidth = 600, chartHeight = 200, chartPadding = 35;
+            const scaleBounds = useMemo(() => {
+                const activeValList = [...comparisonData.portfolioPoints.map(p => p.value), ...(showSpy ? comparisonData.spyPoints.map(p => p.value) : []), ...(showAcwi ? comparisonData.acwiPoints.map(p => p.value) : [])];
+                return activeValList.length === 0 ? { min: 0, max: 1 } : { min: Math.min(...activeValList) * 0.99, max: Math.max(...activeValList) * 1.01 };
+            }, [comparisonData, showSpy, showAcwi]);
 
-            // --- SVG PLOT GRAPH COORDINATES ---
-            const chartWidth = 600;
-            const chartHeight = 200;
-            const chartPadding = 35;
-            const coordinates = useMemo(() => {
-                if (chartPoints.length === 0) return [];
-                const minVal = Math.min(...chartPoints.map(p => p.value)) * 0.99;
-                const maxVal = Math.max(...chartPoints.map(p => p.value)) * 1.01;
-                const valRange = maxVal - minVal || 1;
-                return chartPoints.map((point, i) => {
-                    const x = chartPadding + (i / (chartPoints.length - 1)) * (chartWidth - chartPadding * 2);
-                    const y = chartHeight - chartPadding - ((point.value - minVal) / valRange) * (chartHeight - chartPadding * 2);
-                    return { x, y, value: point.value, label: point.label };
-                });
-            }, [chartPoints]);
+            const coordinatesMap = useMemo(() => {
+                const range = scaleBounds.max - scaleBounds.min || 1;
+                const getCoords = (series) => series.map((point, i) => ({ x: chartPadding + (i / (series.length - 1)) * (chartWidth - chartPadding * 2), y: chartHeight - chartPadding - ((point.value - scaleBounds.min) / range) * (chartHeight - chartPadding * 2), value: point.value, label: point.label }));
+                return { portfolio: getCoords(comparisonData.portfolioPoints), spy: getCoords(comparisonData.spyPoints), acwi: getCoords(comparisonData.acwiPoints) };
+            }, [comparisonData, scaleBounds]);
 
-            const generatePath = () => {
-                if (coordinates.length === 0) return '';
-                return coordinates.reduce((path, p, i) => i === 0 ? `M ${p.x} ${p.y}` : `${path} L ${p.x} ${p.y}`, '');
-            };
-
-            const generateAreaPath = () => {
-                if (coordinates.length === 0) return '';
-                const path = generatePath();
-                const bottomY = chartHeight - chartPadding;
-                return `${path} L ${coordinates[coordinates.length-1].x} ${bottomY} L ${coordinates[0].x} ${bottomY} Z`;
-            };
+            const generatePath = (coords) => coords.length === 0 ? '' : coords.reduce((path, p, i) => i === 0 ? `M ${p.x} ${p.y}` : `${path} L ${p.x} ${p.y}`, '');
+            const generateAreaPath = (coords) => coords.length === 0 ? '' : `${generatePath(coords)} L ${coords[coords.length-1].x} ${chartHeight - chartPadding} L ${coords[0].x} ${chartHeight - chartPadding} Z`;
 
             if (cloudStatus === 'unauthenticated') {
                 return (
@@ -1007,10 +712,7 @@
                             <p className="text-xs opacity-60 leading-relaxed max-w-xs mx-auto mb-8">
                                 Connect to your secure personal account. Your custom assets and targets are encrypted and tied to your Google identity.
                             </p>
-                            <button 
-                                onClick={handleGoogleSignIn}
-                                className="w-full bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 font-extrabold text-sm py-3 px-4 rounded-xl shadow transition-all flex items-center justify-center space-x-2.5"
-                            >
+                            <button onClick={handleGoogleSignIn} className="w-full bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 font-extrabold text-sm py-3 px-4 rounded-xl shadow transition-all flex items-center justify-center space-x-2.5">
                                 <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114A5.96 5.96 0 0 1 8.03 12.557a5.96 5.96 0 0 1 5.96-5.96c1.448 0 2.766.52 3.794 1.378l3.224-3.224c-1.996-1.858-4.57-3-7.018-3a10.16 10.16 0 0 0-10.16 10.16A10.16 10.16 0 0 0 13.99 22.36c5.542 0 10.02-4.542 10.02-10.02 0-.672-.054-1.343-.162-2.055H12.24z"/></svg>
                                 <span>Sign In with Google</span>
                             </button>
@@ -1022,17 +724,12 @@
             return (
                 <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
                     
-                    {/* Unclaimed Dividend Notification Banner */}
                     {unclaimedDividends.some(d => !d.processed && !d.simulatedUpcoming) && (
-                        <div className="bg-gradient-to-r from-emerald-600 to-indigo-600 text-white font-semibold py-2 px-4 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-lg animate-pulse">
+                        <div className="bg-gradient-to-r from-emerald-600 to-indigo-600 text-white font-semibold py-2.5 px-4 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-lg animate-pulse">
                             <span>📢 Dividend Announcement! Click Claim to deposit in your Dividend Cash account.</span>
                             <div className="flex items-center space-x-2">
                                 {unclaimedDividends.filter(d => !d.processed && !d.simulatedUpcoming).map(div => (
-                                    <button 
-                                        key={div.id}
-                                        onClick={() => triggerPromptClaimDividend(div)}
-                                        className="bg-slate-900/40 hover:bg-slate-950 text-emerald-300 hover:text-white px-3 py-1 rounded-lg text-xs font-bold transition-all border border-emerald-500/20"
-                                    >
+                                    <button key={div.id} onClick={() => triggerPromptClaimDividend(div)} className="bg-slate-900/40 hover:bg-slate-950 text-emerald-300 hover:text-white px-3 py-1 rounded-lg text-xs font-bold transition-all border border-emerald-500/20">
                                         Claim {div.currency === 'USD' ? '$' : 'HK$'}{div.amount.toFixed(2)} ({div.symbol})
                                     </button>
                                 ))}
@@ -1040,7 +737,6 @@
                         </div>
                     )}
 
-                    {/* Navigation Header */}
                     <header className={`border-b ${isDarkMode ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-white/80'} sticky top-0 z-40 backdrop-blur-md`}>
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                             <div className="flex items-center space-x-3">
@@ -1054,130 +750,112 @@
                             </div>
 
                             <div className="flex items-center space-x-3">
-                                {lastPriceSync && (
-                                    <span className="text-[10px] font-semibold text-slate-400 hidden sm:inline">
-                                        Last Sync: {lastPriceSync} | Spot: 1 USD = {usdToHkd} HKD
-                                    </span>
-                                )}
+                                {lastPriceSync && <span className="text-[10px] font-semibold text-slate-400 hidden sm:inline">Last Sync: {lastPriceSync} | Spot: 1 USD = {usdToHkd} HKD</span>}
 
-                                <button 
-                                    onClick={syncLiveMarketPrices}
-                                    className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center space-x-1"
-                                >
-                                    <span>🔄 Sync Live Prices &amp; Forex</span>
+                                <button onClick={syncLiveMarketPrices} className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-full text-xs font-semibold transition-all">
+                                    🔄 Sync Prices &amp; Forex
                                 </button>
 
                                 <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 rounded-lg border border-slate-800">
                                     {isDarkMode ? '🌙' : '☀️'}
                                 </button>
 
-                                <button onClick={handleSignOut} className="bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-700 transition-all">Sign Out</button>
+                                <button onClick={handleResetAllToBaseline} className="bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-700 transition-all">
+                                    Reset Portfolio
+                                </button>
 
-                                <button onClick={() => setIsAddModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded-xl">
-                                    + Add Asset
+                                <button onClick={handleSignOut} className="bg-slate-800 hover:bg-slate-700 text-rose-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-700 transition-all">
+                                    Sign Out
                                 </button>
                             </div>
                         </div>
                     </header>
 
-                    {/* Dashboard Wrapper */}
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                         
-                        {/* Upper Metric Widgets */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
                                 <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Net Equity Value</span>
-                                <div className="text-xl font-extrabold mt-1 text-indigo-400">
-                                    USD ${totals.totalValueUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </div>
-                                <div className="text-sm font-semibold text-slate-400">
-                                    HKD ${totals.totalValueHKD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </div>
-                                <p className={`text-[10px] mt-1.5 font-bold ${totals.totalGainUSD >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                    {totals.totalGainUSD >= 0 ? '▲ +' : '▼ '}USD {totals.totalGainUSD.toLocaleString()} ({totals.gainPercentage.toFixed(2)}%)
-                                </p>
+                                <div className="text-xl font-extrabold mt-1 text-indigo-400">USD ${totals.totalValueUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                <div className="text-sm font-semibold text-slate-400">HKD ${totals.totalValueHKD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                             </div>
 
-                            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
                                 <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Weighted Expense Ratio</span>
-                                <div className="text-xl font-extrabold mt-1 text-amber-400">
-                                    {totals.weightedExpenseRatio.toFixed(3)}%
-                                </div>
+                                <div className="text-xl font-extrabold mt-1 text-amber-400">{totals.weightedExpenseRatio.toFixed(3)}%</div>
                                 <div className="text-[10px] opacity-60 mt-1">
-                                    Silent Drag: 
-                                    <div className="font-semibold text-rose-400">USD ${totals.annualDragUSD.toLocaleString('en-US', { maximumFractionDigits: 2 })} / yr</div>
-                                    <div className="font-semibold text-rose-400/80">HKD ${totals.annualDragHKD.toLocaleString('en-US', { maximumFractionDigits: 2 })} / yr</div>
+                                    Silent Drag: <span className="font-semibold text-rose-400">${totals.annualDragUSD.toLocaleString('en-US', { maximumFractionDigits: 2 })} / yr</span>
                                 </div>
                             </div>
 
-                            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
                                 <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Claimed Dividend Cash</span>
-                                <div className="text-xl font-extrabold mt-1 text-emerald-400">
-                                    USD ${claimedDividendsCash.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                </div>
-                                <div className="text-xs font-semibold text-slate-400">
-                                    HKD ${(claimedDividendsCash * usdToHkd).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                </div>
+                                <div className="text-xl font-extrabold mt-1 text-emerald-400">USD ${claimedDividendsCash.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
                                 <p className="text-[10px] opacity-50 mt-1">Off-portfolio balance cash</p>
                             </div>
 
-                            <div className="p-5 rounded-2xl border bg-gradient-to-br from-indigo-950/20 to-slate-900/40 border-slate-800">
-                                <span className="text-[10px] font-bold tracking-wider text-indigo-400 uppercase">AI Diagnostics</span>
-                                <div className="mt-2 flex flex-col space-y-1">
-                                    <button onClick={() => triggerPresetCopilotQuery('risk')} className="text-left text-[11px] font-semibold px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">📊 Volatility Beta</button>
-                                    <button onClick={() => triggerPresetCopilotQuery('rebalance')} className="text-left text-[11px] font-semibold px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">⚖️ Round Board-Lots</button>
-                                </div>
+                            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                                <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Implied Portfolio Beta (β)</span>
+                                <div className="text-xl font-extrabold mt-1 text-violet-400">{totals.portfolioBeta.toFixed(2)}</div>
+                                <p className="text-[10px] opacity-50 mt-1">Weighted relative volatility</p>
                             </div>
                         </div>
 
-                        {/* Navigation Tabs */}
                         <div className="flex border-b border-slate-800 mb-6 space-x-1">
                             <button onClick={() => setActiveTab('dashboard')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'dashboard' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>📊 Dashboard</button>
                             <button onClick={() => setActiveTab('exposure')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'exposure' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>🌐 Overlaps &amp; Exposure</button>
                             <button onClick={() => setActiveTab('holdings')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'holdings' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>⚙️ Targets &amp; Weight Deltas</button>
-                            <button onClick={() => setActiveTab('dividends')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'dividends' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>💰 Dividends &amp; DRIP Projections</button>
+                            <button onClick={() => setActiveTab('dividends')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'dividends' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>💰 Dividends &amp; DRIP</button>
                             <button onClick={() => setActiveTab('transactions')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'transactions' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>📜 Transactions</button>
-                            <button onClick={() => setActiveTab('copilot')} className={`px-4 py-2.5 text-sm font-semibold border-b-2 ${activeTab === 'copilot' ? 'border-indigo-500 text-indigo-400 font-bold' : 'border-transparent opacity-60'}`}>🤖 AI Copilot</button>
                         </div>
 
-                        {/* TAB: MAIN DASHBOARD PANEL */}
                         {activeTab === 'dashboard' && (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <div className={`lg:col-span-2 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                    <h3 className="font-bold text-lg">Value Growth Pathway (USD Base)</h3>
+                                <div className={`lg:col-span-2 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                                    <div className="flex justify-between mb-4">
+                                        <h3 className="font-bold text-lg">Performance vs. Major Benchmarks</h3>
+                                        <div className="flex items-center bg-slate-800/40 p-1 rounded-xl">
+                                            {['1D', '1W', '1M', '1Y', 'ALL'].map(tf => (
+                                                <button key={tf} onClick={() => setTimeframe(tf)} className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${timeframe === tf ? 'bg-indigo-600 text-white' : 'opacity-60'}`}>{tf}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-4 text-xs font-bold mb-4">
+                                        <div className="flex items-center space-x-1"><span className="w-3 h-3 bg-indigo-500 rounded"></span><span>My Portfolio</span></div>
+                                        <div className="flex items-center space-x-1 cursor-pointer" onClick={() => setShowSpy(!showSpy)}><span className={`w-3 h-1 border-t-2 ${showSpy ? 'border-amber-500' : 'border-slate-600'} border-dashed`}></span><span className={showSpy?'text-slate-400':'text-slate-600'}>S&P 500</span></div>
+                                        <div className="flex items-center space-x-1 cursor-pointer" onClick={() => setShowAcwi(!showAcwi)}><span className={`w-3 h-1 border-t-2 ${showAcwi ? 'border-emerald-500' : 'border-slate-600'} border-dashed`}></span><span className={showAcwi?'text-slate-400':'text-slate-600'}>MSCI ACWI</span></div>
+                                    </div>
                                     <div className="relative w-full h-48 mt-4">
-                                        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full overflow-visible">
-                                            <path d={generateAreaPath()} fill="rgba(99,102,241,0.15)" />
-                                            <path d={generatePath()} fill="none" stroke="#6366f1" strokeWidth="3" />
+                                        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full overflow-visible" onMouseLeave={() => setHoveredPoint(null)}>
+                                            <defs>
+                                                <linearGradient id="gradient" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor="#6366f1" stopOpacity="0.2"/>
+                                                    <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0"/>
+                                                </linearGradient>
+                                            </defs>
+                                            <path d={generateAreaPath(coordinatesMap.portfolio)} fill="url(#gradient)" />
+                                            {showSpy && <path d={generatePath(coordinatesMap.spy)} fill="none" stroke="#f59e0b" strokeWidth="2" strokeDasharray="4,4" className="opacity-75" />}
+                                            {showAcwi && <path d={generatePath(coordinatesMap.acwi)} fill="none" stroke="#10b981" strokeWidth="2" strokeDasharray="2,2" className="opacity-75" />}
+                                            <path d={generatePath(coordinatesMap.portfolio)} fill="none" stroke="#6366f1" strokeWidth="3" />
                                         </svg>
                                     </div>
                                 </div>
-
                                 <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
                                     <h3 className="font-bold text-lg mb-4">Diversification Breakdown</h3>
                                     <div className="space-y-3">
                                         {holdings.map(h => {
-                                            const isHKD = h.currency === 'HKD';
-                                            const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
-                                            const weight = totals.totalValueUSD > 0 ? ((h.shares * currentPriceUSD) / totals.totalValueUSD) * 100 : 0;
+                                            const weight = totals.totalValueUSD > 0 ? ((h.shares * (h.currency === 'HKD' ? h.currentPrice / usdToHkd : h.currentPrice)) / totals.totalValueUSD) * 100 : 0;
                                             return (
-                                                <div key={h.id} className="flex items-center justify-between text-xs font-semibold">
-                                                    <span className="flex items-center space-x-2">
-                                                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: h.color }}></span>
-                                                        <span>{h.symbol} <span className="opacity-40">({h.currency})</span></span>
-                                                    </span>
+                                                <div key={h.id} className="flex justify-between text-xs font-semibold">
+                                                    <span className="flex items-center space-x-2"><span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: h.color }}></span><span>{h.symbol}</span></span>
                                                     <span>{weight.toFixed(1)}%</span>
                                                 </div>
                                             );
                                         })}
                                     </div>
                                 </div>
-
                                 <div className={`lg:col-span-3 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h3 className="font-bold text-lg">Open Allocation Positions</h3>
-                                        <div className="text-xs opacity-60">Spot Exchange Rate: 1 USD = {usdToHkd} HKD</div>
-                                    </div>
+                                    <div className="flex justify-between mb-4"><h3 className="font-bold text-lg">Open Allocation Positions</h3></div>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left text-xs sm:text-sm">
                                             <thead>
@@ -1185,54 +863,24 @@
                                                     <th className="py-2.5 px-2">Asset</th>
                                                     <th className="py-2.5 px-2 text-right">Shares</th>
                                                     <th className="py-2.5 px-2 text-right">Price (Native)</th>
-                                                    <th className="py-2.5 px-2 text-right">Market Value (USD / HKD)</th>
+                                                    <th className="py-2.5 px-2 text-right">Market Value (USD)</th>
                                                     <th className="py-2.5 px-2 text-right">Current Weight</th>
                                                     <th className="py-2.5 px-2 text-right">Target Weight</th>
-                                                    <th className="py-2.5 px-2 text-right">Action Cash Gap</th>
                                                 </tr>
                                             </thead>
-                                            <tbody>
+                                            <tbody className="divide-y divide-slate-800/30">
                                                 {holdings.map(h => {
                                                     const isHKD = h.currency === 'HKD';
-                                                    const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
-                                                    
-                                                    const valUSD = h.shares * currentPriceUSD;
-                                                    const valHKD = valUSD * usdToHkd;
-
+                                                    const valUSD = h.shares * (isHKD ? h.currentPrice / usdToHkd : h.currentPrice);
                                                     const curW = totals.totalValueUSD > 0 ? (valUSD / totals.totalValueUSD) * 100 : 0;
-                                                    const tarValUSD = (h.targetWeight / 100) * totals.totalValueUSD;
-                                                    const cashG_USD = tarValUSD - valUSD;
-                                                    const cashG_HKD = cashG_USD * usdToHkd;
-
                                                     return (
-                                                        <tr key={h.id} className="hover:bg-slate-800/10 border-b border-slate-800/40">
-                                                            <td className="py-3 px-2 font-bold">
-                                                                {h.symbol} 
-                                                                <span className="text-[10px] opacity-40 block">{h.name}</span>
-                                                            </td>
+                                                        <tr key={h.id} className="hover:bg-slate-800/10">
+                                                            <td className="py-3 px-2 font-bold">{h.symbol}</td>
                                                             <td className="py-3 px-2 text-right">{h.shares.toLocaleString()}</td>
-                                                            <td className="py-3 px-2 text-right font-medium">
-                                                                {h.currentPrice.toFixed(2)} <span className="text-[10px] opacity-50">{h.currency}</span>
-                                                            </td>
-                                                            <td className="py-3 px-2 text-right">
-                                                                <div className="font-extrabold text-indigo-400">${valUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[10px] font-normal opacity-60">USD</span></div>
-                                                                <div className="text-xs text-slate-400">${valHKD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[9px] opacity-60">HKD</span></div>
-                                                            </td>
+                                                            <td className="py-3 px-2 text-right font-medium">{h.currentPrice.toFixed(2)} {h.currency}</td>
+                                                            <td className="py-3 px-2 text-right font-extrabold text-indigo-400">${valUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                                                             <td className="py-3 px-2 text-right font-semibold">{curW.toFixed(1)}%</td>
                                                             <td className="py-3 px-2 text-right">{h.targetWeight}%</td>
-                                                            <td className={`py-3 px-2 text-right font-bold ${cashG_USD >= 10 ? 'text-emerald-400' : cashG_USD <= -10 ? 'text-rose-400' : 'text-slate-500'}`}>
-                                                                {cashG_USD >= 10 ? (
-                                                                    <div>
-                                                                        <div>BUY ${Math.round(cashG_USD).toLocaleString()} USD</div>
-                                                                        <div className="text-xs font-normal opacity-80">(${Math.round(cashG_HKD).toLocaleString()} HKD)</div>
-                                                                    </div>
-                                                                ) : cashG_USD <= -10 ? (
-                                                                    <div>
-                                                                        <div>SELL ${Math.abs(Math.round(cashG_USD)).toLocaleString()} USD</div>
-                                                                        <div className="text-xs font-normal opacity-80">(${Math.abs(Math.round(cashG_HKD)).toLocaleString()} HKD)</div>
-                                                                    </div>
-                                                                ) : 'MATCHED'}
-                                                            </td>
                                                         </tr>
                                                     );
                                                 })}
@@ -1243,136 +891,33 @@
                             </div>
                         )}
 
-                        {/* TAB: EXPOSURE & OVERLAPS HEATMAPS */}
                         {activeTab === 'exposure' && (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div className="space-y-6">
-                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                        <h3 className="font-bold text-base mb-1">True Geographic Exposure Heatmap</h3>
-                                        <p className="text-[11px] opacity-50 mb-4">Calculated by country allocations of underlying index funds</p>
-                                        <div className="space-y-4">
-                                            {geographicExposure.map(geo => (
-                                                <div key={geo.name} className="space-y-1">
-                                                    <div className="flex items-center justify-between text-xs font-semibold">
-                                                        <span className="opacity-80">{geo.name}</span>
-                                                        <span className="text-indigo-400 font-bold">
-                                                            {geo.percentage.toFixed(1)}% <span className="text-slate-500 font-normal ml-1">(USD: ${Math.round(geo.valueUSD).toLocaleString()})</span>
-                                                        </span>
-                                                    </div>
-                                                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                                                        <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${geo.percentage}%` }}></div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                        <h3 className="font-bold text-base mb-1">True Sector Exposure Tracker</h3>
-                                        <p className="text-[11px] opacity-50 mb-4">Aggregate sectors looking through ETF wrappers</p>
-                                        <div className="space-y-4">
-                                            {sectorExposure.map(sec => (
-                                                <div key={sec.name} className="space-y-1">
-                                                    <div className="flex items-center justify-between text-xs font-semibold">
-                                                        <span className="opacity-80">{sec.name}</span>
-                                                        <span className="text-emerald-400 font-bold">
-                                                            {sec.percentage.toFixed(1)}% <span className="text-slate-500 font-normal ml-1">(USD: ${Math.round(sec.valueUSD).toLocaleString()})</span>
-                                                        </span>
-                                                    </div>
-                                                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                                                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${sec.percentage}%` }}></div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                    <h3 className="font-bold text-base mb-4">Geographic Exposure</h3>
+                                    <div className="space-y-4">
+                                        {geographicExposure.map(geo => (
+                                            <div key={geo.name} className="space-y-1">
+                                                <div className="flex justify-between text-xs font-semibold"><span>{geo.name}</span><span className="text-indigo-400">{geo.percentage.toFixed(1)}%</span></div>
+                                                <div className="w-full bg-slate-800 h-2 rounded-full"><div className="bg-indigo-500 h-full rounded-full" style={{ width: `${geo.percentage}%` }}></div></div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
-
-                                <div className="space-y-6">
-                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800 border-dashed' : 'bg-white border-slate-200 shadow-sm'}`}>
-                                        <h3 className="font-extrabold text-base mb-1 text-indigo-400">Macro Stress Testing Board</h3>
-                                        <p className="text-[11px] opacity-60 mb-4">Simulate catastrophic global events on your look-through equity concentrations</p>
-                                        <div className="grid grid-cols-3 gap-2 mb-4">
-                                            {Object.keys(STRESS_TEST_CATALOG).map(key => (
-                                                <button 
-                                                    key={key}
-                                                    onClick={() => setActiveStressTest(activeStressTest === key ? null : key)}
-                                                    className={`p-3 rounded-xl border text-left transition-all ${activeStressTest === key ? 'bg-rose-950/40 border-rose-500 text-rose-300' : 'bg-slate-900/20 border-slate-800 hover:bg-slate-900/60'}`}
-                                                >
-                                                    <div className="text-xs font-bold block">{STRESS_TEST_CATALOG[key].name}</div>
-                                                </button>
-                                            ))}
-                                        </div>
-                                        {stressTestResult ? (
-                                            <div className="p-4 rounded-xl bg-rose-950/20 border border-rose-500/20 space-y-2 animate-slide-in">
-                                                <div className="text-xs text-rose-300 font-bold uppercase tracking-wider">Estimated Drawdown Impact</div>
-                                                <div className="flex justify-between text-xs font-bold">
-                                                    <span>Portfolio Value loss:</span>
-                                                    <span className="text-rose-400">- {stressTestResult.lossPct.toFixed(2)}%</span>
-                                                </div>
-                                                <div className="flex justify-between text-xs">
-                                                    <span>Post-Crisis Value (USD):</span>
-                                                    <span className="font-extrabold">${Math.round(stressTestResult.postValueUSD).toLocaleString()}</span>
-                                                </div>
-                                                <div className="flex justify-between text-xs">
-                                                    <span>Post-Crisis Value (HKD):</span>
-                                                    <span className="font-semibold">${Math.round(stressTestResult.postValueHKD).toLocaleString()}</span>
-                                                </div>
-                                                <p className="text-[10px] opacity-60 pt-1 border-t border-rose-500/10 italic">
-                                                    {STRESS_TEST_CATALOG[activeStressTest].description}
-                                                </p>
+                                <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                    <h3 className="font-bold text-base mb-4">Sector Exposure</h3>
+                                    <div className="space-y-4">
+                                        {sectorExposure.map(sec => (
+                                            <div key={sec.name} className="space-y-1">
+                                                <div className="flex justify-between text-xs font-semibold"><span>{sec.name}</span><span className="text-emerald-400">{sec.percentage.toFixed(1)}%</span></div>
+                                                <div className="w-full bg-slate-800 h-2 rounded-full"><div className="bg-emerald-500 h-full rounded-full" style={{ width: `${sec.percentage}%` }}></div></div>
                                             </div>
-                                        ) : (
-                                            <div className="text-center p-6 text-xs opacity-50 border border-dashed border-slate-800 rounded-xl">
-                                                Select a macro scenario above to estimate your drawdown risk.
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                        <h3 className="font-bold text-base mb-1">Implied Stock Holdings &amp; Overlaps</h3>
-                                        <p className="text-[11px] opacity-50 mb-4">Calculated cash ownership of top underlying corporate holdings</p>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-left text-xs">
-                                                <thead>
-                                                    <tr className="border-b border-slate-800 opacity-60">
-                                                        <th className="py-2">Stock</th>
-                                                        <th className="py-2">Source Funds</th>
-                                                        <th className="py-2 text-right">Implied Cash Exposure</th>
-                                                        <th className="py-2 text-right">Total Weight</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-800/30">
-                                                    {overlaps.map(stock => (
-                                                        <tr key={stock.symbol} className="hover:bg-slate-800/10">
-                                                            <td className="py-2.5 font-bold text-indigo-400">{stock.symbol}</td>
-                                                            <td className="py-2.5">
-                                                                <div className="flex flex-wrap gap-1">
-                                                                    {stock.sources.map(src => (
-                                                                        <span key={src.etf} className="bg-slate-800 text-slate-300 text-[9px] px-1.5 py-0.5 rounded" title={`${src.weight}% allocation`}>
-                                                                            {src.etf} ({src.weight}%)
-                                                                        </span>
-                                                                    ))}
-                                                                </div>
-                                                            </td>
-                                                            <td className="py-2.5 text-right font-extrabold text-emerald-400">
-                                                                <div>${Math.round(stock.totalValueUSD).toLocaleString()} USD</div>
-                                                                <div className="text-[10px] font-normal text-slate-400">${Math.round(stock.totalValueUSD * usdToHkd).toLocaleString()} HKD</div>
-                                                            </td>
-                                                            <td className="py-2.5 text-right font-bold opacity-80">
-                                                                {stock.percentage.toFixed(2)}%
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* TAB: TARGET SETTINGS MATRIX */}
                         {activeTab === 'holdings' && (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                 <div className={`lg:col-span-2 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
@@ -1382,63 +927,41 @@
                                             <div key={h.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-800/20 border border-slate-800/40">
                                                 <div className="flex flex-col">
                                                     <span className="font-bold">{h.symbol}</span>
-                                                    <span className="text-[10px] opacity-50">Expense Fee: {h.expenseRatio}% | Trading in {h.currency}</span>
+                                                    <span className="text-[10px] opacity-50">Trading in {h.currency}</span>
                                                 </div>
                                                 <div className="flex items-center space-x-2">
-                                                    <input 
-                                                        type="number" min="0" max="100" 
-                                                        value={h.targetWeight} 
-                                                        onChange={(e) => handleTargetWeightChange(h.id, e.target.value)}
-                                                        className="w-16 text-center px-1 py-1 rounded font-bold bg-slate-800 border border-slate-700 text-white"
-                                                    />
-                                                    <span className="font-bold text-xs">% target weight</span>
-                                                    <button onClick={() => deleteHolding(h.id)} className="text-rose-500 ml-2 hover:bg-rose-500/10 p-1.5 rounded" title="Delete position">
-                                                        🗑️
-                                                    </button>
+                                                    <input type="number" min="0" max="100" value={h.targetWeight} onChange={(e) => handleTargetWeightChange(h.id, e.target.value)}
+                                                        className="w-16 text-center px-1.5 py-1 rounded font-bold bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                                    <span className="font-bold text-xs">% target</span>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
-                                </div>
-
-                                <div className="p-6 rounded-2xl border bg-slate-900/30 border-slate-800 h-fit space-y-4">
-                                    <div>
-                                        <h3 className="font-extrabold text-base text-indigo-400 mb-1">Lot-Sized Buy/Sell Instructions</h3>
-                                        <p className="text-[11px] opacity-60">Calculates precise transactions rounded automatically to standard HK Board Lots (100 or 500 lots) and whole US shares.</p>
+                                    <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between">
+                                        <span className="font-extrabold text-sm opacity-80">Cumulative Target Allocation:</span>
+                                        <span className={`text-sm font-extrabold px-3 py-1 rounded-xl border ${totalTargetWeight === 100 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
+                                            {totalTargetWeight}% / 100% {totalTargetWeight !== 100 && '⚠️'}
+                                        </span>
                                     </div>
+                                </div>
+                                <div className="p-6 rounded-2xl border bg-slate-900/30 border-slate-800 h-fit space-y-4">
+                                    <h3 className="font-extrabold text-base text-indigo-400 mb-1">Buy/Sell Action Gaps</h3>
                                     <div className="space-y-3 pt-2">
                                         {holdings.map(h => {
                                             const isHKD = h.currency === 'HKD';
-                                            const currentPriceUSD = isHKD ? h.currentPrice / usdToHkd : h.currentPrice;
-                                            const assetValUSD = h.shares * currentPriceUSD;
+                                            const valUSD = h.shares * (isHKD ? h.currentPrice / usdToHkd : h.currentPrice);
                                             const targetValueUSD = (h.targetWeight / 100) * totals.totalValueUSD;
-                                            const cashGapUSD = targetValueUSD - assetValUSD;
-
-                                            const meta = ASSET_METADATA[h.symbol] || { lotSize: 1 };
-                                            const sharesNeeded = cashGapUSD / currentPriceUSD;
-
-                                            let tradeQty = 0;
-                                            if (meta.lotSize > 1) {
-                                                const rawLots = Math.round(sharesNeeded / meta.lotSize);
-                                                tradeQty = rawLots * meta.lotSize;
-                                            } else {
-                                                tradeQty = Math.round(sharesNeeded);
-                                            }
-
-                                            if (Math.abs(tradeQty) === 0) return null;
-
+                                            const cashGapUSD = targetValueUSD - valUSD;
+                                            if (Math.abs(cashGapUSD) < 10) return null;
                                             return (
-                                                <div key={h.symbol} className="p-3 rounded-lg border border-slate-800 bg-slate-900/50 flex items-center justify-between text-xs font-semibold">
+                                                <div key={h.symbol} className="p-3 rounded-lg border border-slate-800 bg-slate-900/50 flex justify-between text-xs font-semibold">
                                                     <div>
-                                                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${tradeQty > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
-                                                            {tradeQty > 0 ? 'BUY' : 'SELL'}
+                                                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${cashGapUSD > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                                                            {cashGapUSD > 0 ? 'BUY' : 'SELL'}
                                                         </span>
                                                         <span className="ml-2 font-bold">{h.symbol}</span>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <span className="block font-black text-indigo-400">{Math.abs(tradeQty)} units</span>
-                                                        <span className="text-[10px] opacity-50 block">Lot Multiplier: {meta.lotSize}</span>
-                                                    </div>
+                                                    <span className="font-black text-indigo-400">${Math.abs(cashGapUSD).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
                                                 </div>
                                             );
                                         })}
@@ -1447,249 +970,216 @@
                             </div>
                         )}
 
-                        {/* TAB: DIVIDENDS & DYNAMIC DRIP COMPOUNDING CALCULATOR */}
                         {activeTab === 'dividends' && (
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                                <div className="lg:col-span-4 p-6 rounded-2xl border bg-slate-900/50 border-slate-800 h-fit space-y-6">
-                                    <div>
-                                        <h3 className="font-bold text-base text-indigo-400 mb-1">Projection Sandbox</h3>
-                                        <p className="text-[11px] opacity-50">Model compounding and broker collection commission effects over time</p>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] uppercase font-bold tracking-wider opacity-60">Reinvestment Strategy</label>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <button 
-                                                onClick={() => setIsDripEnabled(false)} 
-                                                className={`py-2 rounded-xl text-xs font-bold transition-all border ${!isDripEnabled ? 'bg-slate-800 text-amber-400 border-amber-500' : 'border-slate-800 opacity-60'}`}
-                                            >
-                                                💵 Cash Out
-                                            </button>
-                                            <button 
-                                                onClick={() => setIsDripEnabled(true)} 
-                                                className={`py-2 rounded-xl text-xs font-bold transition-all border ${isDripEnabled ? 'bg-indigo-950/40 text-emerald-400 border-emerald-500' : 'border-slate-800 opacity-60'}`}
-                                            >
-                                                🔄 DRIP Reinvest
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <div className="flex justify-between text-xs mb-1">
-                                                <span className="opacity-75 font-semibold">Annual Capital CAGR</span>
-                                                <span className="text-indigo-400 font-bold">{projectorCagr}%</span>
-                                            </div>
-                                            <input 
-                                                type="range" min="0" max="15" step="0.5" 
-                                                value={projectorCagr} 
-                                                onChange={(e) => setProjectorCagr(parseFloat(e.target.value))}
-                                                className="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer" 
-                                            />
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between text-xs mb-1">
-                                                <span className="opacity-75 font-semibold">Timeline Span</span>
-                                                <span className="text-indigo-400 font-bold">{projectorYears} Years</span>
-                                            </div>
-                                            <input 
-                                                type="range" min="1" max="30" step="1" 
-                                                value={projectorYears} 
-                                                onChange={(e) => setProjectorYears(parseInt(e.target.value))}
-                                                className="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer" 
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="pt-4 border-t border-slate-800/80 space-y-2 text-xs">
-                                        <div className="flex justify-between">
-                                            <span className="opacity-60">Implied Weighted Yield:</span>
-                                            <span className="font-bold text-emerald-400">{dripCompoundingProjection.averageYieldPct.toFixed(2)}%</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="opacity-60">Projected Dividends Cash:</span>
-                                            <span className="font-semibold text-slate-300">${Math.round(dripCompoundingProjection.totalPayoutsEarnedUSD).toLocaleString()} USD</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="lg:col-span-8 space-y-6">
-                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                        <h3 className="font-bold text-lg mb-4">Projected Compounding Performance</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="p-4 rounded-xl bg-indigo-950/20 border border-indigo-500/10">
-                                                <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-400 block">Scenario Terminal value</span>
-                                                <span className="text-xl font-extrabold text-white block">USD ${dripCompoundingProjection.terminalValueUSD.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
-                                                <span className="text-sm font-semibold text-slate-400">HKD ${dripCompoundingProjection.terminalValueHKD.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
-                                            </div>
-                                            <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800">
-                                                <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400 block">Cumulative Payout Yield</span>
-                                                <span className="text-xl font-extrabold text-white block">USD ${dripCompoundingProjection.totalPayoutsEarnedUSD.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
-                                                <span className="text-sm font-semibold text-slate-400">HKD ${dripCompoundingProjection.totalPayoutsEarnedHKD.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                        <h3 className="font-bold text-lg mb-1">Trailing 12-Month (TTM) Dividend Ledger</h3>
-                                        <p className="text-[11px] opacity-60 mb-6">Visual monthly trajectory of claimed transaction payouts</p>
-                                        <div className="flex items-end justify-between h-32 pt-2 border-b border-slate-800 px-2">
-                                            {ttmMonthlyIncome.map(bar => {
-                                                const maxVal = Math.max(...ttmMonthlyIncome.map(b => b.amountUSD)) || 1;
-                                                const percentHeight = (bar.amountUSD / maxVal) * 85;
-                                                return (
-                                                    <div key={bar.month} className="flex flex-col items-center flex-1 group">
-                                                        <div className="text-[9px] text-emerald-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity mb-1">
-                                                            ${Math.round(bar.amountUSD)}
-                                                        </div>
-                                                        <div 
-                                                            className="w-6 bg-emerald-500/80 rounded-t hover:bg-emerald-400 transition-all cursor-pointer"
-                                                            style={{ height: `${Math.max(4, percentHeight)}px` }}
-                                                            title={`USD: $${bar.amountUSD.toFixed(2)} | HKD: $${bar.amountHKD.toFixed(2)}`}
-                                                        ></div>
-                                                        <span className="text-[10px] opacity-50 font-bold mt-2">{bar.month}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
-                                        <h3 className="font-bold text-lg mb-4">Historical Income Log</h3>
-                                        <div className="space-y-3">
-                                            {unclaimedDividends.map((div, idx) => (
-                                                <div key={idx} className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 flex items-center justify-between">
-                                                    <div>
-                                                        <span className="font-bold text-sm block">{div.symbol} Cash Flow</span>
-                                                        <span className="text-[10px] opacity-60 block">Declared Ex-Date: {div.date}</span>
-                                                    </div>
-                                                    <div className="text-right flex items-center space-x-3">
-                                                        <div>
-                                                            <span className="font-extrabold text-emerald-400 block">{div.currency === 'USD' ? '$' : 'HK$'}{div.amount.toFixed(2)}</span>
-                                                            <span className="text-[10px] text-slate-400 block">
-                                                                ({div.currency === 'USD' ? 'HK$' : '$'}{(div.currency === 'USD' ? div.amount * usdToHkd : div.amount / usdToHkd).toFixed(2)})
-                                                            </span>
-                                                        </div>
-                                                        {div.processed ? (
-                                                            <span className="text-xs font-semibold text-slate-500">PAID</span>
-                                                        ) : (
-                                                            <button onClick={() => triggerPromptClaimDividend(div)} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold px-2.5 py-1 rounded">Claim</button>
-                                                        )}
-                                                    </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                                    <h3 className="font-bold text-lg mb-1">Trailing 12-Month (TTM) Dividend Ledger</h3>
+                                    <div className="flex items-end justify-between h-32 pt-6 border-b border-slate-800 px-2">
+                                        {ttmMonthlyIncome.map(bar => {
+                                            const maxVal = Math.max(...ttmMonthlyIncome.map(b => b.amountUSD)) || 1;
+                                            const percentHeight = (bar.amountUSD / maxVal) * 85;
+                                            return (
+                                                <div key={bar.month} className="flex flex-col items-center flex-1 group">
+                                                    <div className="text-[9px] text-emerald-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity mb-1">${Math.round(bar.amountUSD)}</div>
+                                                    <div className="w-6 bg-emerald-500/80 rounded-t hover:bg-emerald-400 transition-all cursor-pointer" style={{ height: `${Math.max(4, percentHeight)}px` }}></div>
+                                                    <span className="text-[10px] opacity-50 font-bold mt-2">{bar.month}</span>
                                                 </div>
-                                            ))}
-                                        </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* TAB: TRANSACTIONS LOG */}
                         {activeTab === 'transactions' && (
-                            <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
-                                <h3 className="font-bold text-lg mb-1">Transaction History Ledger</h3>
-                                <p className="text-xs opacity-60 mb-4">Log of portfolio events, buy/sell executions, and dividend captures</p>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-xs sm:text-sm">
-                                        <thead>
-                                            <tr className="border-b border-slate-800 opacity-60 font-semibold text-[10px] tracking-wider uppercase">
-                                                <th className="py-3 px-2">TX ID</th>
-                                                <th className="py-3 px-2">Timestamp</th>
-                                                <th className="py-3 px-2">Type</th>
-                                                <th className="py-3 px-2">Asset Code</th>
-                                                <th className="py-3 px-2 text-right">Shares/Qty</th>
-                                                <th className="py-3 px-2 text-right">Price (Native)</th>
-                                                <th className="py-3 px-2 text-right">Total Cost / Capture</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-800/30">
-                                            {transactions.map((tx, i) => {
-                                                const totalCost = tx.amount * tx.price;
-                                                return (
-                                                    <tr key={i} className="hover:bg-slate-800/10 transition-all">
-                                                        <td className="py-3 px-2 font-mono opacity-40">{tx.id}</td>
-                                                        <td className="py-3 px-2 opacity-80">{tx.date}</td>
-                                                        <td className="py-3 px-2">
-                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${tx.type === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : tx.type === 'SELL' ? 'bg-rose-500/10 text-rose-400' : 'bg-indigo-500/10 text-indigo-400'}`}>
-                                                                {tx.type}
-                                                            </span>
-                                                        </td>
-                                                        <td className="py-3 px-2 font-bold text-indigo-400">{tx.symbol}</td>
-                                                        <td className="py-3 px-2 text-right font-semibold">{tx.amount.toLocaleString()}</td>
-                                                        <td className="py-3 px-2 text-right font-medium">{tx.currency === 'USD' ? '$' : 'HK$'}{tx.price.toFixed(2)}</td>
-                                                        <td className={`py-3 px-2 text-right font-bold ${tx.type === 'DIVIDEND' ? 'text-emerald-400' : 'text-slate-100'}`}>
-                                                            {tx.currency === 'USD' ? '$' : 'HK$'}{totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* TAB: AI PORTFOLIO COPILOT */}
-                        {activeTab === 'copilot' && (
-                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                                <div className="lg:col-span-1 space-y-4">
-                                    <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
-                                        <h4 className="font-bold text-sm mb-2 text-indigo-400">Quick Prompts</h4>
-                                        <div className="space-y-2">
-                                            <button onClick={() => triggerPresetCopilotQuery('risk')} className="w-full text-left text-xs font-semibold p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 transition-all">📈 Volatility Beta Score</button>
-                                            <button onClick={() => triggerPresetCopilotQuery('rebalance')} className="w-full text-left text-xs font-semibold p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 transition-all">⚖️ Order Rounding Gaps</button>
-                                            <button onClick={() => triggerPresetCopilotQuery('dividends')} className="w-full text-left text-xs font-semibold p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 transition-all">💰 Compounding Taxes Drag</button>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-slide-in">
+                                <div className={`p-6 rounded-2xl border h-fit ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                                    <h3 className="font-bold text-base mb-4 text-indigo-400">Log Manual Transaction</h3>
+                                    <form onSubmit={handleManualTxSubmit} className="space-y-4 text-xs sm:text-sm">
+                                        <div>
+                                            <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Asset Code</label>
+                                            <select value={txFormSymbol} onChange={e => setTxFormSymbol(e.target.value)} className="w-full px-3 py-2.5 rounded-xl text-xs border border-slate-700 bg-slate-900 text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                                {holdings.map(h => <option key={h.id} value={h.symbol} className="bg-slate-900 text-slate-100">{h.symbol}</option>)}
+                                            </select>
                                         </div>
-                                    </div>
-                                </div>
-
-                                <div className={`lg:col-span-3 p-6 rounded-2xl border flex flex-col justify-between h-[500px] ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
-                                    <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
-                                        {messages.map((m, idx) => (
-                                            <div key={idx} className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs sm:text-sm leading-relaxed ${m.sender === 'user' ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-100 rounded-bl-none'}`}>
-                                                    <div className="font-extrabold text-[10px] tracking-wide mb-1 opacity-70">
-                                                        {m.sender === 'user' ? 'YOU' : 'FOLIOAI CO-PILOT'}
-                                                    </div>
-                                                    <div className="whitespace-pre-line font-medium">{m.text}</div>
-                                                </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Direction</label>
+                                                <select value={txFormType} onChange={e => setTxFormType(e.target.value)} className="w-full px-3 py-2.5 rounded-xl text-xs border border-slate-700 bg-slate-900 text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                                    <option value="BUY" className="bg-slate-900 text-slate-100">BUY Order</option>
+                                                    <option value="SELL" className="bg-slate-900 text-slate-100">SELL Order</option>
+                                                    <option value="DIVIDEND" className="bg-slate-900 text-slate-100">DIVIDEND Cash flow</option>
+                                                </select>
                                             </div>
-                                        ))}
-                                        {isAiLoading && (
-                                            <div className="flex justify-start">
-                                                <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-slate-800 text-slate-300 rounded-bl-none">
-                                                    <div className="flex items-center space-x-1.5 py-1">
-                                                        <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                                                        <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                                                        <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                                                    </div>
-                                                </div>
+                                            <div>
+                                                <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Currency</label>
+                                                <select value={txFormCurrency} disabled className="w-full px-3 py-2.5 rounded-xl text-xs border border-slate-700 bg-slate-900 text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                                    <option value="USD" className="bg-slate-900 text-slate-100">USD ($)</option>
+                                                    <option value="HKD" className="bg-slate-900 text-slate-100">HKD (HK$)</option>
+                                                </select>
                                             </div>
-                                        )}
-                                    </div>
-
-                                    <form onSubmit={handleSendMessage} className="flex items-center space-x-2 border-t border-slate-800/80 pt-4">
-                                        <input 
-                                            type="text" 
-                                            placeholder="Connect your Gemini API Key in the config script to chat!"
-                                            value={copilotInput}
-                                            onChange={(e) => setCopilotInput(e.target.value)}
-                                            disabled={isAiLoading}
-                                            className="flex-1 px-4 py-2.5 rounded-xl text-xs sm:text-sm bg-slate-800 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                        />
-                                        <button type="submit" disabled={isAiLoading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl">Inquire</button>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div className="col-span-1">
+                                                <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Qty</label>
+                                                <input type="number" step="any" placeholder="0" value={txFormShares} onChange={e => setTxFormShares(e.target.value)} className="w-full px-3 py-2 rounded-xl text-xs border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" required />
+                                            </div>
+                                            <div className="col-span-1">
+                                                <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Price</label>
+                                                <input type="number" step="any" placeholder="0.00" value={txFormType === 'DIVIDEND' ? '1.00' : txFormPrice} onChange={e => setTxFormPrice(e.target.value)} disabled={txFormType === 'DIVIDEND'} className="w-full px-3 py-2 rounded-xl text-xs border border-slate-700 bg-slate-900 text-slate-100 disabled:opacity-50 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" required={txFormType !== 'DIVIDEND'} />
+                                            </div>
+                                            <div className="col-span-1">
+                                                <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Fees</label>
+                                                <input type="number" step="any" placeholder="0" value={txFormCommission} onChange={e => setTxFormCommission(e.target.value)} className="w-full px-3 py-2 rounded-xl text-xs border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Timestamp</label>
+                                            <input type="date" value={txFormDate} onChange={e => setTxFormDate(e.target.value)} className="w-full px-3 py-2 rounded-xl text-xs border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" required />
+                                        </div>
+                                        <button type="submit" className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl transition-all shadow-lg text-xs">Log Transaction</button>
                                     </form>
+                                </div>
+                                <div className={`lg:col-span-2 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                                    <h3 className="font-bold text-lg mb-4">Operation Ledger Logs</h3>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-xs">
+                                            <thead>
+                                                <tr className="border-b border-slate-800 opacity-60 font-semibold text-[10px] tracking-wider uppercase">
+                                                    <th className="py-3 px-2">TX ID</th>
+                                                    <th className="py-3 px-2">Timestamp</th>
+                                                    <th className="py-3 px-2">Type</th>
+                                                    <th className="py-3 px-2">Asset</th>
+                                                    <th className="py-3 px-2 text-right">Shares/Qty</th>
+                                                    <th className="py-3 px-2 text-right">Price</th>
+                                                    <th className="py-3 px-2 text-right">Tax/Comm</th>
+                                                    <th className="py-3 px-2 text-right">Net Cost</th>
+                                                    <th className="py-3 px-2 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-800/30">
+                                                {transactions.length === 0 ? (
+                                                    <tr><td colSpan="9" className="py-8 text-center text-slate-500 italic">No transactions logged yet.</td></tr>
+                                                ) : (
+                                                    transactions.map((tx, i) => {
+                                                        const totalCost = getTxNet(tx);
+                                                        return (
+                                                            <tr key={i} className="hover:bg-slate-800/10 transition-all">
+                                                                <td className="py-3 px-2 font-mono opacity-50" title={tx.id}>{truncateId(tx.id)}</td>
+                                                                <td className="py-3 px-2 opacity-80">{tx.date}</td>
+                                                                <td className="py-3 px-2">
+                                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${tx.type === 'BUY' ? 'bg-emerald-500/10 text-emerald-400' : tx.type === 'SELL' ? 'bg-rose-500/10 text-rose-400' : 'bg-indigo-500/10 text-indigo-400'}`}>
+                                                                        {tx.type}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="py-3 px-2 font-bold text-indigo-400">{tx.symbol}</td>
+                                                                <td className="py-3 px-2 text-right font-semibold">{tx.amount.toLocaleString()}</td>
+                                                                <td className="py-3 px-2 text-right font-medium">{tx.currency === 'USD' ? '$' : 'HK$'}{tx.price.toFixed(2)}</td>
+                                                                <td className="py-3 px-2 text-right text-rose-400 font-medium font-mono">{tx.commission > 0 ? `${tx.currency === 'USD' ? '$' : 'HK$'}${tx.commission.toFixed(2)}` : '-'}</td>
+                                                                <td className={`py-3 px-2 text-right font-bold ${tx.type === 'DIVIDEND' ? 'text-emerald-400' : 'text-slate-100'}`}>
+                                                                    {tx.currency === 'USD' ? '$' : 'HK$'}{totalCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                                </td>
+                                                                <td className="py-3 px-2 text-right">
+                                                                    <div className="flex items-center justify-end space-x-1">
+                                                                        <button onClick={() => openEditTxModal(tx)} className="hover:bg-indigo-500/15 p-1 rounded text-xs transition-all text-indigo-400" title="Edit">✏️</button>
+                                                                        <button onClick={() => handleDeleteTx(tx.id)} className="hover:bg-rose-500/15 p-1 rounded text-xs transition-all text-rose-400" title="Delete">🗑️</button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         )}
 
                     </div>
 
-                    {/* Dividend Collection Commission Modal Dialog */}
+                    {/* OVERLAY MODAL SYSTEM */}
+                    {modalAlert && (
+                        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[99] animate-slide-in">
+                            <div className={`w-full max-w-md p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'} shadow-2xl`}>
+                                <h3 className="font-extrabold text-lg mb-2">{modalAlert.title}</h3>
+                                <p className="text-xs opacity-75 mb-6 leading-relaxed">{modalAlert.message}</p>
+                                <div className="flex justify-end space-x-2">
+                                    {modalAlert.isConfirm && <button onClick={() => setModalAlert(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all">Cancel</button>}
+                                    <button onClick={() => { if (modalAlert.onConfirm) modalAlert.onConfirm(); setModalAlert(null); }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all">
+                                        {modalAlert.isConfirm ? 'Confirm Action' : 'OK'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TRANSACTION EDIT MODAL */}
+                    {isEditTxModalOpen && selectedTxForEdit && (
+                        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-slide-in">
+                            <div className={`w-full max-w-md p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'} shadow-2xl`}>
+                                <div className="flex items-center justify-between mb-4">
+                                  <h3 className="font-extrabold text-lg">Modify Transaction</h3>
+                                  <button onClick={() => { setIsEditTxModalOpen(false); setSelectedTxForEdit(null); }} className="opacity-60 hover:opacity-100">✕</button>
+                                </div>
+                                <form onSubmit={handleEditTxSubmit} className="space-y-4">
+                                  <div>
+                                    <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Asset Code</label>
+                                    <select value={editTxSymbol} onChange={e => setEditTxSymbol(e.target.value)} className="w-full px-3 py-2 rounded-xl text-sm border border-slate-700 bg-slate-900 text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500" required>
+                                      {holdings.map(h => <option key={h.id} value={h.symbol} className="bg-slate-900 text-slate-100">{h.symbol}</option>)}
+                                    </select>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Type</label>
+                                      <select value={editTxType} onChange={e => setEditTxType(e.target.value)} className="w-full px-3 py-2 rounded-xl text-sm border border-slate-700 bg-slate-900 text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500" required>
+                                        <option value="BUY" className="bg-slate-900 text-slate-100">BUY</option>
+                                        <option value="SELL" className="bg-slate-900 text-slate-100">SELL</option>
+                                        <option value="DIVIDEND" className="bg-slate-900 text-slate-100">DIVIDEND</option>
+                                        <option value="LIQUIDATE" className="bg-slate-900 text-slate-100">LIQUIDATE</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Currency</label>
+                                      <select value={editTxCurrency} onChange={e => setEditTxCurrency(e.target.value)} className="w-full px-3 py-2 rounded-xl text-sm border border-slate-700 bg-slate-900 text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500" required>
+                                        <option value="USD" className="bg-slate-900 text-slate-100">USD ($)</option>
+                                        <option value="HKD" className="bg-slate-900 text-slate-100">HKD (HK$)</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-3 gap-2">
+                                    <div>
+                                      <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Shares</label>
+                                      <input type="number" step="any" value={editTxAmount} onChange={e => setEditTxAmount(e.target.value)} className="w-full px-3 py-2 rounded-xl text-sm border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" required />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Price</label>
+                                      <input type="number" step="any" value={editTxPrice} onChange={e => setEditTxPrice(e.target.value)} className="w-full px-3 py-2 rounded-xl text-sm border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" required />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Commission</label>
+                                      <input type="number" step="any" value={editTxCommission} onChange={e => setEditTxCommission(e.target.value)} className="w-full px-3 py-2 rounded-xl text-sm border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" required />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Execution Date</label>
+                                    <input type="date" value={editTxDate} onChange={e => setEditTxDate(e.target.value)} className="w-full px-3 py-2 rounded-xl text-sm border border-slate-700 bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" required />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 pt-4">
+                                    <button type="button" onClick={() => { setIsEditTxModalOpen(false); setSelectedTxForEdit(null); }} className="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-all">Cancel</button>
+                                    <button type="submit" className="py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition-all">Save Changes</button>
+                                  </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* DIVIDEND CLAIM MODAL */}
                     {isClaimDivModalOpen && selectedDivToClaim && (
                         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-slide-in">
                             <div className="w-full max-w-md p-6 rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-2xl">
                                 <h3 className="font-bold text-base mb-1">Reinvest Dividend</h3>
-                                <p className="text-xs opacity-50 mb-4">Set brokerage fee or tax collection deduction details on gross payouts</p>
-                                
-                                <form onSubmit={executeClaimDividend} className="space-y-4">
+                                <form onSubmit={executeClaimDividend} className="space-y-4 mt-4">
                                     <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-800 flex items-center justify-between text-xs">
                                         <div>
                                             <span className="font-bold opacity-60 block">Declared Holding</span>
@@ -1706,101 +1196,30 @@
                                     <div>
                                         <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Commission Deduction Type</label>
                                         <div className="grid grid-cols-2 gap-2 mb-3">
-                                            <button 
-                                                type="button"
-                                                onClick={() => {
-                                                    setDivCommissionType('FLAT');
-                                                    setDivCommissionVal(selectedDivToClaim.currency === 'HKD' ? '15.00' : '1.99');
-                                                }}
-                                                className={`py-1.5 rounded-lg text-xs font-bold transition-all border ${divCommissionType === 'FLAT' ? 'bg-indigo-950/40 text-indigo-400 border-indigo-500' : 'border-slate-800 opacity-60'}`}
-                                            >
-                                                💵 Flat Broker Fee
-                                            </button>
-                                            <button 
-                                                type="button"
-                                                onClick={() => {
-                                                    setDivCommissionType('PERCENT');
-                                                    setDivCommissionVal('30');
-                                                }}
-                                                className={`py-1.5 rounded-lg text-xs font-bold transition-all border ${divCommissionType === 'PERCENT' ? 'bg-indigo-950/40 text-indigo-400 border-indigo-500' : 'border-slate-800 opacity-60'}`}
-                                            >
-                                                ٪ Percentage / Tax
-                                            </button>
+                                            <button type="button" onClick={() => { setDivCommissionType('FLAT'); setDivCommissionVal(selectedDivToClaim.currency === 'HKD' ? '15.00' : '1.99'); }} className={`py-1.5 rounded-lg text-xs font-bold transition-all border ${divCommissionType === 'FLAT' ? 'bg-indigo-950/40 text-indigo-400 border-indigo-500' : 'border-slate-800 opacity-60'}`}>💵 Flat Broker Fee</button>
+                                            <button type="button" onClick={() => { setDivCommissionType('PERCENT'); setDivCommissionVal('30'); }} className={`py-1.5 rounded-lg text-xs font-bold transition-all border ${divCommissionType === 'PERCENT' ? 'bg-indigo-950/40 text-indigo-400 border-indigo-500' : 'border-slate-800 opacity-60'}`}>٪ Percentage / Tax</button>
                                         </div>
-
-                                        <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">
-                                            {divCommissionType === 'FLAT' ? 'Flat Commission Amount' : 'Withholding Tax / Fee Percentage'}
-                                        </label>
                                         <div className="grid grid-cols-3 gap-2">
                                             <div className="col-span-2">
-                                                <input 
-                                                    type="number" step="any"
-                                                    value={divCommissionVal} 
-                                                    onChange={(e) => setDivCommissionVal(e.target.value)}
-                                                    className="w-full p-2 bg-slate-800 rounded border border-slate-700 text-sm text-white focus:outline-none" 
-                                                    required 
-                                                />
+                                                <input type="number" step="any" value={divCommissionVal} onChange={(e) => setDivCommissionVal(e.target.value)} className="w-full p-2 bg-slate-900 rounded border border-slate-700 text-sm text-white focus:outline-none focus:ring-1 focus:ring-indigo-550" required />
                                             </div>
                                             <div className="bg-slate-800 flex items-center justify-center rounded border border-slate-700 font-bold text-xs text-slate-300">
                                                 {divCommissionType === 'FLAT' ? selectedDivToClaim.currency : '%'}
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className="pt-2 flex justify-between items-center text-xs border-t border-slate-800">
-                                        <span className="opacity-60">Estimated Net payout credit:</span>
-                                        <span className="font-black text-emerald-400">
-                                            {selectedDivToClaim.currency === 'USD' ? '$' : 'HK$'}
-                                            {(selectedDivToClaim.amount - (divCommissionType === 'FLAT' ? (parseFloat(divCommissionVal) || 0) : (selectedDivToClaim.amount * (parseFloat(divCommissionVal) || 0) / 100))).toFixed(2)}
-                                        </span>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-2 pt-2">
-                                        <button 
-                                            type="button" 
-                                            onClick={() => {
-                                                setIsClaimDivModalOpen(false);
-                                                setSelectedDivToClaim(null);
-                                            }}
-                                            className="py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button 
-                                            type="submit" 
-                                            className="py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs"
-                                        >
-                                            Confirm Reinvestment
-                                        </button>
+                                    <div className="grid grid-cols-2 gap-2 pt-4">
+                                        <button type="button" onClick={() => { setIsClaimDivModalOpen(false); setSelectedDivToClaim(null); }} className="py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs">Cancel</button>
+                                        <button type="submit" className="py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs">Confirm Reinvestment</button>
                                     </div>
                                 </form>
                             </div>
                         </div>
                     )}
 
-                    {/* Trade Trigger Dialog Modal */}
-                    {isBuySellModalOpen && selectedAssetForModal && (
-                        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                            <div className="w-full max-w-md p-6 rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-2xl">
-                                <h3 className="font-bold text-lg mb-4">Trade Position Sim - {selectedAssetForModal.symbol}</h3>
-                                <form onSubmit={handleBuySellSubmit} className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button type="button" onClick={() => setTradeType('BUY')} className={`py-1.5 rounded-xl text-xs font-bold ${tradeType==='BUY'?'bg-emerald-500/20 text-emerald-400 border border-emerald-500':'border border-slate-800'}`}>BUY</button>
-                                        <button type="button" onClick={() => setTradeType('SELL')} className={`py-1.5 rounded-xl text-xs font-bold ${tradeType==='SELL'?'bg-rose-500/20 text-rose-400 border-rose-500':'border border-slate-800'}`}>SELL</button>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input type="number" step="any" placeholder="Shares" value={tradeAmount} onChange={(e) => setTradeAmount(e.target.value)} className="p-2 bg-slate-800 rounded border border-slate-700 text-sm" required />
-                                        <input type="number" step="any" placeholder="Price" value={tradePrice} onChange={(e) => setTradePrice(e.target.value)} className="p-2 bg-slate-800 rounded border border-slate-700 text-sm" required />
-                                    </div>
-                                    <button type="submit" className="w-full py-2 bg-indigo-600 rounded-xl text-sm font-bold">Process Simulation Trade</button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Add Asset Modal */}
+                    {/* ADD ASSET MODAL */}
                     {isAddModalOpen && (
-                        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-slide-in">
                             <div className="w-full max-w-md p-6 rounded-2xl border border-slate-800 bg-slate-900 text-white shadow-2xl">
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="font-extrabold text-lg">Add Custom Holding</h3>
@@ -1810,35 +1229,35 @@
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Asset Symbol</label>
-                                            <input type="text" placeholder="e.g. VTI" value={newSymbol} onChange={(e) => setNewSymbol(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                            <input type="text" placeholder="e.g. VTI" value={newSymbol} onChange={(e) => setNewSymbol(e.target.value)} className="w-full p-2.5 border border-slate-700 bg-slate-900 text-slate-100 rounded-xl text-sm outline-none" required />
                                         </div>
                                         <div>
                                             <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Trading Currency</label>
-                                            <select value={newCurrency} onChange={(e) => setNewCurrency(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm text-white">
-                                                <option value="USD">USD ($)</option>
-                                                <option value="HKD">HKD (HK$)</option>
+                                            <select value={newCurrency} onChange={(e) => setNewCurrency(e.target.value)} className="w-full p-2.5 border border-slate-700 bg-slate-900 text-slate-100 rounded-xl text-sm outline-none">
+                                                <option value="USD" className="bg-slate-900 text-slate-100">USD ($)</option>
+                                                <option value="HKD" className="bg-slate-900 text-slate-100">HKD (HK$)</option>
                                             </select>
                                         </div>
                                     </div>
                                     <div>
                                         <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Asset Name</label>
-                                        <input type="text" placeholder="e.g. Vanguard Total Stock" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                        <input type="text" placeholder="e.g. Vanguard ETF" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full p-2.5 border border-slate-700 bg-slate-900 text-slate-100 rounded-xl text-sm outline-none" required />
                                     </div>
                                     <div className="grid grid-cols-3 gap-2">
                                         <div>
                                             <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Qty</label>
-                                            <input type="number" step="any" placeholder="10" value={newShares} onChange={(e) => setNewShares(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                            <input type="number" step="any" placeholder="0" value={newShares} onChange={(e) => setNewShares(e.target.value)} className="w-full p-2.5 border border-slate-700 bg-slate-900 text-slate-100 rounded-xl text-sm outline-none" required />
                                         </div>
                                         <div>
                                             <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Price</label>
-                                            <input type="number" step="any" placeholder="100" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                            <input type="number" step="any" placeholder="0.00" value={newPrice} onChange={(e) => setNewPrice(e.target.value)} className="w-full p-2.5 border border-slate-700 bg-slate-900 text-slate-100 rounded-xl text-sm outline-none" required />
                                         </div>
                                         <div>
                                             <label className="text-[10px] uppercase font-bold opacity-60 block mb-1">Expense %</label>
-                                            <input type="number" step="any" placeholder="0.10" value={newExpenseRatio} onChange={(e) => setNewExpenseRatio(e.target.value)} className="w-full p-2.5 bg-slate-800 rounded-xl border border-slate-700 text-sm" required />
+                                            <input type="number" step="any" placeholder="0.10" value={newExpenseRatio} onChange={(e) => setNewExpenseRatio(e.target.value)} className="w-full p-2.5 border border-slate-700 bg-slate-900 text-slate-100 rounded-xl text-sm outline-none" required />
                                         </div>
                                     </div>
-                                    <button type="submit" className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold">Add Position</button>
+                                    <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold">Add Position</button>
                                 </form>
                             </div>
                         </div>
