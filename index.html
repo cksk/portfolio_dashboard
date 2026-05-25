@@ -5,12 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FolioAI - Pure Equity Cloud Portfolio</title>
     
+    <!-- Tailwind CSS for premium utility styling -->
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- React and Babel CDNs to run JSX directly in the browser -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
@@ -41,21 +44,24 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
 
+    <!-- Root target for React mounting -->
     <div id="root"></div>
 
+    <!-- Firebase SDK ES Modules CDN -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Expose modules to the window context so Babel-transpiled React can consume them
-        window.FirebaseSDK = { initializeApp, getAuth, signInWithPopup, GoogleAuthProvider, signOut, onSnapshot, getFirestore, doc, setDoc };
+        // FIXED: Added onAuthStateChanged here so React can access it and prevent the TypeError crash
+        window.FirebaseSDK = { initializeApp, getAuth, signInWithPopup, GoogleAuthProvider, signOut, onSnapshot, getFirestore, doc, setDoc, onAuthStateChanged };
     </script>
 
+    <!-- Main React App Script (Transpiled on the fly by Babel) -->
     <script type="text/babel">
         const getFirebaseTools = () => {
             return window.FirebaseSDK || {
-                initializeApp: () => {}, getAuth: () => {}, signInWithPopup: () => {}, GoogleAuthProvider: () => {}, signOut: () => {}, onSnapshot: () => {}, getFirestore: () => {}, doc: () => {}, setDoc: () => {}
+                initializeApp: () => {}, getAuth: () => {}, signInWithPopup: () => {}, GoogleAuthProvider: () => {}, signOut: () => {}, onSnapshot: () => {}, getFirestore: () => {}, doc: () => {}, setDoc: () => {}, onAuthStateChanged: () => {}
             };
         };
 
@@ -134,12 +140,12 @@
         function App() {
             // --- PASTE YOUR FIREBASE CONFIG HERE ---
             const firebaseConfig = {
-                apiKey: "AIzaSyBRgONBX1nXM0fPjYhQsqfYBjq41NyU-fc",
-                authDomain: "calvin-dashboard.firebaseapp.com",
-                projectId: "calvin-dashboard",
-                storageBucket: "calvin-dashboard.firebasestorage.app",
-                messagingSenderId: "921825941721",
-                appId: "1:921825941721:web:53815a10796cb4843e06c8"
+                apiKey: "AIzaSyDsjcJKHIPVRqCFbCfdUcA3kRDEHWJgs2c",
+                authDomain: "dashboard-c8af1.firebaseapp.com",
+                projectId: "dashboard-c8af1",
+                storageBucket: "dashboard-c8af1.firebasestorage.app",
+                messagingSenderId: "179423658435",
+                appId: "1:179423658435:web:100c01d5e8b82b5a2afd76"
             };
 
             const [holdings, setHoldings] = useState([]);
@@ -202,29 +208,24 @@
             const [cloudStatus, setCloudStatus] = useState('connecting'); // connecting | synced | saving | error | unauthenticated
 
             useEffect(() => {
-                // Use the real, globally bound window SDK directly to prevent 'tools' TypeErrors
-                const sdk = window.FirebaseSDK;
-                if (!sdk || firebaseConfig.apiKey === "PASTE_YOUR_API_KEY_HERE") {
+                const tools = getFirebaseTools();
+                if (!tools.initializeApp || firebaseConfig.apiKey === "PASTE_YOUR_API_KEY_HERE") {
                     setCloudStatus('unauthenticated');
                     return;
                 }
 
                 try {
-                    const app = sdk.initializeApp(firebaseConfig);
-                    const auth = sdk.getAuth(app);
-                    const db = sdk.getFirestore(app);
+                    const app = tools.initializeApp(firebaseConfig);
+                    const auth = tools.getAuth(app);
+                    const db = tools.getFirestore(app);
 
-                    // FIXED: Changed tools.onAuthStateChanged to sdk.onAuthStateChanged
-                    const unsubscribe = sdk.onAuthStateChanged(auth, (currentUser) => {
+                    const unsubscribe = tools.onAuthStateChanged(auth, (currentUser) => {
                         setUser(currentUser);
                         if (currentUser) {
                             setCloudStatus('connecting');
-                            
-                            // FIXED: Pointing securely to your verified portfolio-dashboard-main path
-                            const docRef = sdk.doc(db, 'artifacts', 'portfolio-dashboard-main', 'users', currentUser.uid, 'portfolioState', 'data');
-                            
-                            // FIXED: Changed tools.onSnapshot to sdk.onSnapshot
-                            sdk.onSnapshot(docRef, (docSnap) => {
+                            // FIXED: LOAD FROM PORTFOLIO-DASHBOARD-MAIN 
+                            const docRef = tools.doc(db, 'artifacts', 'portfolio-dashboard-main', 'users', currentUser.uid, 'portfolioState', 'data');
+                            tools.onSnapshot(docRef, (docSnap) => {
                                 if (docSnap.exists()) {
                                     const cloudData = docSnap.data();
                                     if (cloudData.holdings) setHoldings(cloudData.holdings);
@@ -233,8 +234,8 @@
                                     if (cloudData.unclaimedDividends) setUnclaimedDividends(cloudData.unclaimedDividends);
                                     setCloudStatus('synced');
                                 } else {
-                                    // Fresh account fallback initialization
-                                    sdk.setDoc(docRef, {
+                                    // Seeding basic arrays on fresh path init
+                                    tools.setDoc(docRef, {
                                         holdings: INITIAL_HOLDINGS,
                                         transactions: INITIAL_TRANSACTIONS,
                                         claimedDividendsCash: 0,
@@ -296,6 +297,7 @@
                 try {
                     const app = tools.initializeApp(firebaseConfig);
                     const db = tools.getFirestore(app);
+                    // FIXED: SAVE TO PORTFOLIO-DASHBOARD-MAIN
                     const docRef = tools.doc(db, 'artifacts', 'portfolio-dashboard-main', 'users', user.uid, 'portfolioState', 'data');
                     
                     await tools.setDoc(docRef, {
@@ -1247,7 +1249,7 @@
                                 <div className="space-y-6">
                                     <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
                                         <h3 className="font-bold text-base mb-1">True Geographic Exposure Heatmap</h3>
-                                        <p className="text-[11px] opacity-50 mb-4">Calculated by aggregate country allocations of underlying index funds</p>
+                                        <p className="text-[11px] opacity-50 mb-4">Calculated by country allocations of underlying index funds</p>
                                         <div className="space-y-4">
                                             {geographicExposure.map(geo => (
                                                 <div key={geo.name} className="space-y-1">
@@ -1267,7 +1269,7 @@
 
                                     <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
                                         <h3 className="font-bold text-base mb-1">True Sector Exposure Tracker</h3>
-                                        <p className="text-[11px] opacity-50 mb-4">Aggregate sectors looking through standard ETF barriers</p>
+                                        <p className="text-[11px] opacity-50 mb-4">Aggregate sectors looking through ETF wrappers</p>
                                         <div className="space-y-4">
                                             {sectorExposure.map(sec => (
                                                 <div key={sec.name} className="space-y-1">
@@ -1666,7 +1668,7 @@
                                     <form onSubmit={handleSendMessage} className="flex items-center space-x-2 border-t border-slate-800/80 pt-4">
                                         <input 
                                             type="text" 
-                                            placeholder="Ask advisor: 'Is VTI more volatile than SMH?' or 'Optimize my dividends drag'..."
+                                            placeholder="Connect your Gemini API Key in the config script to chat!"
                                             value={copilotInput}
                                             onChange={(e) => setCopilotInput(e.target.value)}
                                             disabled={isAiLoading}
