@@ -5,12 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FolioAI - Pure Equity Cloud Portfolio</title>
     
+    <!-- Tailwind CSS for premium utility styling -->
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- React and Babel CDNs to run JSX directly in the browser -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
@@ -41,23 +44,22 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
 
+    <!-- Root target for React mounting -->
     <div id="root"></div>
 
+    <!-- Firebase SDK ES Modules CDN -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        window.FirebaseSDK = { initializeApp, getAuth, signInWithPopup, GoogleAuthProvider, signOut, onSnapshot, getFirestore, doc, setDoc, onAuthStateChanged };
+        // CRASH FIX: Mount to window and dispatch an event so React knows it is safe to proceed
+        window.FirebaseSDK = { initializeApp, getApps, getApp, getAuth, signInWithPopup, GoogleAuthProvider, signOut, onSnapshot, getFirestore, doc, setDoc, onAuthStateChanged };
+        window.dispatchEvent(new Event('firebase-sdk-ready'));
     </script>
 
+    <!-- Main React App Script (Transpiled on the fly by Babel) -->
     <script type="text/babel">
-        const getFirebaseTools = () => {
-            return window.FirebaseSDK || {
-                initializeApp: () => {}, getAuth: () => {}, signInWithPopup: () => {}, GoogleAuthProvider: () => {}, signOut: () => {}, onSnapshot: () => {}, getFirestore: () => {}, doc: () => {}, setDoc: () => {}, onAuthStateChanged: () => {}
-            };
-        };
-
         const { useState, useEffect, useMemo } = React;
 
         // --- LOOK-THROUGH METADATA FOR GEOGRAPHIC, SECTOR & STOCK OVERLAPS ---
@@ -86,7 +88,7 @@
 
         const INITIAL_TRANSACTIONS = [];
 
-        // --- HARDCODED MOCK TEST DATA FOR SANDBOX MODE ---
+        // --- UPGRADE 4: AIR-GAPPED HARDCODED MOCK TEST DATA FOR SANDBOX MODE ---
         const SANDBOX_HOLDINGS = [
             { id: 's1', symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', category: 'Stocks', shares: 50, avgBuyPrice: 245.50, currentPrice: 278.60, color: '#3b82f6', targetWeight: 45, estYield: 1.38, lastDividendDate: '2026-03-24', dividendPerShare: 0.95, currency: 'USD', expenseRatio: 0.03 },
             { id: 's2', symbol: 'SCHG', name: 'Schwab U.S. Large-Cap Growth ETF', category: 'Stocks', shares: 100, avgBuyPrice: 91.20, currentPrice: 112.45, color: '#60a5fa', targetWeight: 25, estYield: 0.43, lastDividendDate: '2026-03-20', dividendPerShare: 0.12, currency: 'USD', expenseRatio: 0.04 },
@@ -118,38 +120,21 @@
                 return firebaseConfig.apiKey && firebaseConfig.apiKey !== "PASTE_YOUR_API_KEY_HERE";
             }, []);
 
-            // --- DATA SYNCHRONIZATION SOURCE SWITCH ---
-            const [holdings, setHoldings] = useState(() => {
-                if (!isFirebaseArmed) {
-                    const stored = localStorage.getItem('folio_holdings');
-                    return stored ? JSON.parse(stored) : INITIAL_HOLDINGS;
+            // CRASH FIX: Wait for SDK modules to load before mounting
+            const [isSdkReady, setIsSdkReady] = useState(!!window.FirebaseSDK);
+            useEffect(() => {
+                if (!isSdkReady) {
+                    const handleSdk = () => setIsSdkReady(true);
+                    window.addEventListener('firebase-sdk-ready', handleSdk);
+                    return () => window.removeEventListener('firebase-sdk-ready', handleSdk);
                 }
-                return INITIAL_HOLDINGS; 
-            });
+            }, [isSdkReady]);
 
-            const [transactions, setTransactions] = useState(() => {
-                if (!isFirebaseArmed) {
-                    const stored = localStorage.getItem('folio_transactions');
-                    return stored ? JSON.parse(stored) : INITIAL_TRANSACTIONS;
-                }
-                return INITIAL_TRANSACTIONS;
-            });
-
-            const [claimedDividendsCash, setClaimedDividendsCash] = useState(() => {
-                if (!isFirebaseArmed) {
-                    const stored = localStorage.getItem('folio_cash');
-                    return stored ? parseFloat(stored) : 0;
-                }
-                return 0;
-            });
-
-            const [unclaimedDividends, setUnclaimedDividends] = useState(() => {
-                if (!isFirebaseArmed) {
-                    const stored = localStorage.getItem('folio_unclaimed');
-                    return stored ? JSON.parse(stored) : [];
-                }
-                return [];
-            });
+            // --- STATE DECLARATIONS ---
+            const [holdings, setHoldings] = useState(INITIAL_HOLDINGS);
+            const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
+            const [claimedDividendsCash, setClaimedDividendsCash] = useState(0);
+            const [unclaimedDividends, setUnclaimedDividends] = useState([]);
 
             const [user, setUser] = useState(null);
             const [cloudStatus, setCloudStatus] = useState(isFirebaseArmed ? 'connecting' : 'local-sandbox'); 
@@ -157,21 +142,17 @@
             const [timeframe, setTimeframe] = useState('1M'); 
             const [selectedAssetForModal, setSelectedAssetForModal] = useState(null);
             
-            // Dynamic exchange rate hook
             const [usdToHkd, setUsdToHkd] = useState(7.80);
             const [lastPriceSync, setLastPriceSync] = useState(null);
 
-            // Benchmark Visibility States
             const [showSpy, setShowSpy] = useState(true);
             const [showAcwi, setShowAcwi] = useState(true);
 
-            // Form states
+            // Modal States
             const [isAddModalOpen, setIsAddModalOpen] = useState(false);
             const [isBuySellModalOpen, setIsBuySellModalOpen] = useState(false);
             const [isClaimDivModalOpen, setIsClaimDivModalOpen] = useState(false);
             const [selectedDivToClaim, setSelectedDivToClaim] = useState(null);
-
-            // Custom Notification & Confirmation Modal State
             const [modalAlert, setModalAlert] = useState(null); 
 
             // Transaction Editing Modal State
@@ -194,7 +175,6 @@
             const [txFormCurrency, setTxFormCurrency] = useState('USD');
             const [txFormCommission, setTxFormCommission] = useState('0');
 
-            // Custom Asset States
             const [newSymbol, setNewSymbol] = useState('');
             const [newName, setNewName] = useState('');
             const [newCategory, setNewCategory] = useState('Stocks');
@@ -207,19 +187,17 @@
             const [tradeAmount, setTradeAmount] = useState('');
             const [tradePrice, setTradePrice] = useState('');
 
-            // Dividend commission form state
             const [divCommissionType, setDivCommissionType] = useState('FLAT'); 
             const [divCommissionVal, setDivCommissionVal] = useState('1.99');
 
-            // Interactive compounding projector sliders
             const [projectorYears, setProjectorYears] = useState(10);
             const [projectorCagr, setProjectorCagr] = useState(7.5); 
             const [isDripEnabled, setIsDripEnabled] = useState(true);
 
-            // Table Pagination States
+            // --- UPGRADE 3: PAGINATION STATES ---
+            const ITEMS_PER_PAGE = 10;
             const [incomeLogPage, setIncomeLogPage] = useState(1);
             const [txLogPage, setTxLogPage] = useState(1);
-            const ITEMS_PER_PAGE = 10;
 
             const [activeStressTest, setActiveStressTest] = useState(null);
             const [copilotInput, setCopilotInput] = useState('');
@@ -229,19 +207,8 @@
             const [isAiLoading, setIsAiLoading] = useState(false);
             const [isDarkMode, setIsDarkMode] = useState(true);
 
-            // --- AUTO LOCAL PERSISTENCE WRITE-BACK (WHEN LOCAL SANDBOX ACTIVE) ---
             useEffect(() => {
-                if (!isFirebaseArmed) {
-                    localStorage.setItem('folio_holdings', JSON.stringify(holdings));
-                    localStorage.setItem('folio_transactions', JSON.stringify(transactions));
-                    localStorage.setItem('folio_cash', claimedDividendsCash.toString());
-                    localStorage.setItem('folio_unclaimed', JSON.stringify(unclaimedDividends));
-                }
-            }, [holdings, transactions, claimedDividendsCash, unclaimedDividends, isFirebaseArmed]);
-
-            // --- AUTO FORM CURRENCY UPDATE ON TICKER CHANGE ---
-            useEffect(() => {
-                const selectedAsset = holdings.find(h => h.symbol === txFormSymbol);
+                const selectedAsset = (holdings || []).find(h => h.symbol === txFormSymbol);
                 if (selectedAsset) {
                     setTxFormCurrency(selectedAsset.currency || 'USD');
                 }
@@ -249,11 +216,11 @@
 
             // --- FIREBASE LIVE DATABASE COUPLER ---
             useEffect(() => {
-                if (!isFirebaseArmed) return;
+                if (!isFirebaseArmed || !isSdkReady) return;
                 const sdk = window.FirebaseSDK;
-                if (!sdk) return;
 
-                const app = sdk.initializeApp(firebaseConfig);
+                // CRASH FIX: Prevent double initializations natively
+                const app = sdk.getApps().length > 0 ? sdk.getApp() : sdk.initializeApp(firebaseConfig);
                 const auth = sdk.getAuth(app);
                 const db = sdk.getFirestore(app);
 
@@ -267,10 +234,10 @@
                         sdk.onSnapshot(docRef, (docSnap) => {
                             if (docSnap.exists()) {
                                 const cloudData = docSnap.data();
-                                if (cloudData.holdings) setHoldings(cloudData.holdings);
-                                if (cloudData.transactions) setTransactions(cloudData.transactions);
-                                if (typeof cloudData.claimedDividendsCash !== 'undefined') setClaimedDividendsCash(cloudData.claimedDividendsCash);
-                                if (cloudData.unclaimedDividends) setUnclaimedDividends(cloudData.unclaimedDividends);
+                                setHoldings(cloudData.holdings || INITIAL_HOLDINGS);
+                                setTransactions(cloudData.transactions || []);
+                                setClaimedDividendsCash(Number(cloudData.claimedDividendsCash) || 0);
+                                setUnclaimedDividends(cloudData.unclaimedDividends || []);
                                 setCloudStatus('synced');
                             } else {
                                 sdk.setDoc(docRef, {
@@ -285,27 +252,38 @@
                             setCloudStatus('error');
                         });
                     } else if (currentUser && currentUser.uid === 'sandbox-user') {
-                        // Keep sandbox profile intact
+                        // Keep sandbox profile intact (handled locally)
                     } else {
                         setUser(null);
                         setCloudStatus('unauthenticated');
                         setHoldings(INITIAL_HOLDINGS);
                         setTransactions(INITIAL_TRANSACTIONS);
                         setClaimedDividendsCash(0);
+                        setUnclaimedDividends([]);
                     }
                 });
 
                 return () => unsubscribe();
-            }, [isFirebaseArmed]);
+            }, [isFirebaseArmed, isSdkReady]);
+
+            const triggerSandboxMode = () => {
+                setUser({ uid: 'sandbox-user', displayName: 'Sandbox User' });
+                setCloudStatus('local-sandbox');
+                setHoldings(SANDBOX_HOLDINGS);
+                setTransactions([]);
+                setClaimedDividendsCash(0);
+                setUnclaimedDividends(SANDBOX_DIVIDENDS);
+            };
 
             const handleGoogleSignIn = async () => {
+                if (!isSdkReady) return;
                 const sdk = window.FirebaseSDK;
-                if (!sdk) return;
+                const app = sdk.getApps().length > 0 ? sdk.getApp() : sdk.initializeApp(firebaseConfig);
+                const auth = sdk.getAuth(app);
+                const provider = new sdk.GoogleAuthProvider();
+                
+                setCloudStatus('connecting');
                 try {
-                    const app = sdk.initializeApp(firebaseConfig);
-                    const auth = sdk.getAuth(app);
-                    const provider = new sdk.GoogleAuthProvider();
-                    setCloudStatus('connecting');
                     await sdk.signInWithPopup(auth, provider);
                 } catch (error) {
                     console.error("Google Sign-In failed: ", error);
@@ -314,22 +292,41 @@
                 }
             };
 
-            const saveToCloud = async (newHoldings, newTransactions, newDividendsCash, newUnclaimed) => {
-                if (!isFirebaseArmed || !user || user.uid === 'sandbox-user') return;
+            const handleSignOut = async () => {
+                if (user && user.uid === 'sandbox-user') {
+                    setUser(null);
+                    setCloudStatus('unauthenticated');
+                    return;
+                }
+                if (!isSdkReady) return;
                 const sdk = window.FirebaseSDK;
-                if (!sdk) return;
+                const app = sdk.getApps().length > 0 ? sdk.getApp() : sdk.initializeApp(firebaseConfig);
+                const auth = sdk.getAuth(app);
+                
+                try {
+                    await sdk.signOut(auth);
+                    setUser(null);
+                    setCloudStatus('unauthenticated');
+                } catch (err) {
+                    console.error("Sign out failed: ", err);
+                }
+            };
+
+            const saveToCloud = async (newHoldings, newTransactions, newDividendsCash, newUnclaimed) => {
+                if (!isFirebaseArmed || !user || user.uid === 'sandbox-user' || !isSdkReady) return;
+                const sdk = window.FirebaseSDK;
 
                 setCloudStatus('saving');
                 try {
-                    const app = sdk.initializeApp(firebaseConfig);
+                    const app = sdk.getApps().length > 0 ? sdk.getApp() : sdk.initializeApp(firebaseConfig);
                     const db = sdk.getFirestore(app);
                     const docRef = sdk.doc(db, 'artifacts', 'portfolio-dashboard-main', 'users', user.uid, 'portfolioState', 'data');
                     
                     await sdk.setDoc(docRef, {
-                        holdings: newHoldings,
-                        transactions: newTransactions,
-                        claimedDividendsCash: newDividendsCash,
-                        unclaimedDividends: newUnclaimed
+                        holdings: newHoldings || [],
+                        transactions: newTransactions || [],
+                        claimedDividendsCash: Number(newDividendsCash) || 0,
+                        unclaimedDividends: newUnclaimed || []
                     });
                     setCloudStatus('synced');
                 } catch (err) {
@@ -352,11 +349,11 @@
                 return `${id.substring(0, 6)}...${id.substring(id.length - 4)}`;
             };
 
-            // --- REAL-TIME DATA, FOREX, AND EX-DIVIDEND ANNOUNCEMENTS SYNC (Yahoo Finance API) ---
+            // --- UPGRADE 2: AUTOMATED DIVIDEND DETECTOR (Yahoo API Sync) ---
             const syncLiveMarketPrices = async () => {
                 setLastPriceSync("Syncing...");
-                let updatedHoldings = [...holdings];
-                let discoveredDividends = [...unclaimedDividends];
+                let updatedHoldings = [...(holdings || [])];
+                let discoveredDividends = [...(unclaimedDividends || [])];
                 let dividendsUpdated = false;
 
                 try {
@@ -365,8 +362,7 @@
                     const response = await fetch(proxyUrl);
                     if (response.ok) {
                         const resJson = await response.json();
-                        const contents = JSON.parse(resJson.contents);
-                        const rate = contents?.chart?.result?.[0]?.meta?.regularMarketPrice;
+                        const rate = JSON.parse(resJson.contents)?.chart?.result?.[0]?.meta?.regularMarketPrice;
                         if (rate) {
                             setUsdToHkd(parseFloat(rate.toFixed(4)));
                         }
@@ -390,13 +386,10 @@
                             if (result) {
                                 const price = result.meta.regularMarketPrice;
                                 if (price) {
-                                    updatedHoldings[i] = {
-                                        ...h,
-                                        currentPrice: parseFloat(price.toFixed(2))
-                                    };
+                                    updatedHoldings[i] = { ...h, currentPrice: parseFloat(price.toFixed(2)) };
                                 }
 
-                                // Detect and queue unrecorded dividends
+                                // Detect and queue unrecorded dividends automatically
                                 const divEvents = result.events?.dividends;
                                 if (divEvents && h.shares > 0) {
                                     Object.values(divEvents).forEach(event => {
@@ -406,7 +399,7 @@
 
                                         if (totalPayout > 0) {
                                             const alreadyUnclaimed = discoveredDividends.some(d => d.symbol === h.symbol && d.date === exDateStr);
-                                            const alreadyClaimed = transactions.some(t => t.symbol === h.symbol && t.date === exDateStr && t.type === 'DIVIDEND');
+                                            const alreadyClaimed = (transactions || []).some(t => t.symbol === h.symbol && t.date === exDateStr && t.type === 'DIVIDEND');
 
                                             if (!alreadyUnclaimed && !alreadyClaimed) {
                                                 discoveredDividends.push({
@@ -438,14 +431,14 @@
                 }
                 setLastPriceSync(new Date().toLocaleTimeString());
                 saveToCloud(updatedHoldings, transactions, claimedDividendsCash, discoveredDividends);
-                showNotification("Sync Success", "Market prices, dynamic FX conversion rates, and corporate ex-dividend schedules synchronized cleanly!");
+                showNotification("Sync Complete", "Prices, Dynamic FX, and Corporate Ex-Dividend Schedules synchronized!");
             };
 
             // --- ARMORED CALCULATIONS FOR FIREBASE DATA SAFETY ---
             const totals = useMemo(() => {
                 let totalValueUSD = 0, totalCostUSD = 0, categoryMap = {}, weightedExpenseRatio = 0, portfolioBeta = 0;
 
-                holdings.forEach(h => {
+                (holdings || []).forEach(h => {
                     const isHKD = h.currency === 'HKD';
                     const currentPriceUSD = isHKD ? (Number(h.currentPrice) || 0) / usdToHkd : (Number(h.currentPrice) || 0);
                     const avgBuyPriceUSD = isHKD ? (Number(h.avgBuyPrice) || 0) / usdToHkd : (Number(h.avgBuyPrice) || 0);
@@ -462,10 +455,9 @@
 
                 const totalGainUSD = totalValueUSD - totalCostUSD;
                 const gainPercentage = totalCostUSD > 0 ? (totalGainUSD / totalCostUSD) * 100 : 0;
-
                 const categories = Object.values(categoryMap).map(c => ({ ...c, percentage: totalValueUSD > 0 ? (c.value / totalValueUSD) * 100 : 0 }));
 
-                holdings.forEach(h => {
+                (holdings || []).forEach(h => {
                     const isHKD = h.currency === 'HKD';
                     const valUSD = (Number(h.shares) || 0) * (isHKD ? (Number(h.currentPrice) || 0) / usdToHkd : (Number(h.currentPrice) || 0));
                     const weight = totalValueUSD > 0 ? (valUSD / totalValueUSD) : 0;
@@ -484,7 +476,7 @@
                 let totalPortfolioVal = totals.totalValueUSD;
                 if (totalPortfolioVal === 0) return [];
 
-                holdings.forEach(h => {
+                (holdings || []).forEach(h => {
                     const valUSD = (Number(h.shares) || 0) * (h.currency === 'HKD' ? (Number(h.currentPrice) || 0) / usdToHkd : (Number(h.currentPrice) || 0));
                     if (ASSET_METADATA[h.symbol]?.geographic) {
                         Object.keys(ASSET_METADATA[h.symbol].geographic).forEach(geo => {
@@ -507,7 +499,7 @@
                 let totalPortfolioVal = totals.totalValueUSD;
                 if (totalPortfolioVal === 0) return [];
 
-                holdings.forEach(h => {
+                (holdings || []).forEach(h => {
                     const valUSD = (Number(h.shares) || 0) * (h.currency === 'HKD' ? (Number(h.currentPrice) || 0) / usdToHkd : (Number(h.currentPrice) || 0));
                     if (ASSET_METADATA[h.symbol]?.sectors) {
                         Object.keys(ASSET_METADATA[h.symbol].sectors).forEach(sec => {
@@ -530,7 +522,7 @@
                 let totalPortfolioVal = totals.totalValueUSD;
                 if (totalPortfolioVal === 0) return [];
 
-                holdings.forEach(h => {
+                (holdings || []).forEach(h => {
                     const valUSD = (Number(h.shares) || 0) * (h.currency === 'HKD' ? (Number(h.currentPrice) || 0) / usdToHkd : (Number(h.currentPrice) || 0));
                     if (ASSET_METADATA[h.symbol]?.holdings) {
                         Object.keys(ASSET_METADATA[h.symbol].holdings).forEach(ticker => {
@@ -556,7 +548,7 @@
                 if (!scenario) return null;
 
                 let postStressValueUSD = 0;
-                holdings.forEach(h => {
+                (holdings || []).forEach(h => {
                     const valUSD = (Number(h.shares) || 0) * (h.currency === 'HKD' ? (Number(h.currentPrice) || 0) / usdToHkd : (Number(h.currentPrice) || 0));
                     let assetStressMultiplier = 1.0;
 
@@ -582,12 +574,11 @@
                 return { postValueUSD: postStressValueUSD, postValueHKD: postStressValueUSD * usdToHkd, lossUSD, lossHKD: lossUSD * usdToHkd, lossPct: totals.totalValueUSD > 0 ? (lossUSD / totals.totalValueUSD) * 100 : 0 };
             }, [activeStressTest, holdings, totals.totalValueUSD, usdToHkd]);
 
-            // --- DRIP CALCULATOR FORMULA WITH FX SYNC ---
             const dripCompoundingProjection = useMemo(() => {
                 const years = projectorYears, rate = projectorCagr / 100;
                 let totalDividendYieldUSD = 0;
                 
-                holdings.forEach(h => {
+                (holdings || []).forEach(h => {
                     const valUSD = (Number(h.shares) || 0) * (h.currency === 'HKD' ? (Number(h.currentPrice) || 0) / usdToHkd : (Number(h.currentPrice) || 0));
                     totalDividendYieldUSD += valUSD * ((Number(h.estYield) || 0) / 100);
                 });
@@ -610,11 +601,10 @@
                 };
             }, [holdings, totals.totalValueUSD, projectorYears, projectorCagr, isDripEnabled, usdToHkd]);
 
-            // --- ARMORED TRAILING 12-MONTH (TTM) DIVIDEND LEDGER GENERATION ---
             const ttmMonthlyIncome = useMemo(() => {
                 let calendar = { Jan: 0, Feb: 0, Mar: 0, Apr: 0, May: 0, Jun: 0, Jul: 0, Aug: 0, Sep: 0, Oct: 0, Nov: 0, Dec: 0 };
                 
-                transactions.forEach(tx => {
+                (transactions || []).forEach(tx => {
                     if (tx.type === 'DIVIDEND' && tx.date) {
                         const dateObj = new Date(tx.date);
                         if (!isNaN(dateObj)) {
@@ -630,19 +620,17 @@
                 return Object.keys(calendar).map(m => ({ month: m, amountUSD: calendar[m], amountHKD: calendar[m] * usdToHkd }));
             }, [transactions, usdToHkd]);
 
-            // --- DATA PAGINATION SYSTEM ---
+            // --- UPGRADE 3: PAGINATION SLICING ---
             const paginatedIncome = useMemo(() => {
-                return unclaimedDividends.slice((incomeLogPage - 1) * ITEMS_PER_PAGE, incomeLogPage * ITEMS_PER_PAGE);
+                return (unclaimedDividends || []).slice((incomeLogPage - 1) * ITEMS_PER_PAGE, incomeLogPage * ITEMS_PER_PAGE);
             }, [unclaimedDividends, incomeLogPage]);
-            const totalIncomePages = Math.ceil(unclaimedDividends.length / ITEMS_PER_PAGE) || 1;
+            const totalIncomePages = Math.ceil((unclaimedDividends || []).length / ITEMS_PER_PAGE) || 1;
 
             const paginatedTx = useMemo(() => {
-                return transactions.slice((txLogPage - 1) * ITEMS_PER_PAGE, txLogPage * ITEMS_PER_PAGE);
+                return (transactions || []).slice((txLogPage - 1) * ITEMS_PER_PAGE, txLogPage * ITEMS_PER_PAGE);
             }, [transactions, txLogPage]);
-            const totalTxPages = Math.ceil(transactions.length / ITEMS_PER_PAGE) || 1;
+            const totalTxPages = Math.ceil((transactions || []).length / ITEMS_PER_PAGE) || 1;
 
-
-            // --- SECURE: CALCULATE TRANSACTION NET WITH SYSTEM COMMISSIONS ---
             const getTxNet = (tx) => {
                 const amt = Number(tx.amount) || 0;
                 const prc = Number(tx.price) || 0;
@@ -656,13 +644,13 @@
 
             const handleTargetWeightChange = (id, newWeight) => {
                 const val = Math.max(0, Math.min(100, parseFloat(newWeight) || 0));
-                const nextHoldings = holdings.map(h => h.id === id ? { ...h, targetWeight: val } : h);
+                const nextHoldings = (holdings || []).map(h => h.id === id ? { ...h, targetWeight: val } : h);
                 setHoldings(nextHoldings);
                 saveToCloud(nextHoldings, transactions, claimedDividendsCash, unclaimedDividends);
             };
 
             const totalTargetWeight = useMemo(() => {
-                return holdings.reduce((acc, h) => acc + (parseFloat(h.targetWeight) || 0), 0);
+                return (holdings || []).reduce((acc, h) => acc + (parseFloat(h.targetWeight) || 0), 0);
             }, [holdings]);
 
             const triggerPromptClaimDividend = (div) => {
@@ -686,23 +674,21 @@
                 } else {
                     calculatedFee = divAmount * (feeInput / 100);
                 }
-
                 calculatedFee = Math.min(divAmount, calculatedFee);
 
                 const isHKD = div.currency === 'HKD';
                 const grossAmountUSD = isHKD ? divAmount / usdToHkd : divAmount;
                 const feeAmountUSD = isHKD ? calculatedFee / usdToHkd : calculatedFee;
-                
                 const netAmountUSD = Math.max(0, grossAmountUSD - feeAmountUSD);
                 const isDripModeActive = isDripEnabled;
 
-                let updatedHoldings = [...holdings];
-                let nextCash = claimedDividendsCash;
+                let updatedHoldings = [...(holdings || [])];
+                let nextCash = Number(claimedDividendsCash) || 0;
 
                 if (isDripModeActive) {
-                    const targetIndex = holdings.findIndex(h => h.symbol === div.symbol);
+                    const targetIndex = updatedHoldings.findIndex(h => h.symbol === div.symbol);
                     if (targetIndex > -1) {
-                        const targetAsset = holdings[targetIndex];
+                        const targetAsset = updatedHoldings[targetIndex];
                         const netAmountInNativeCurrency = divAmount - calculatedFee;
                         const targetPrice = Number(targetAsset.currentPrice) || 1;
                         const sharesToBuyFractional = netAmountInNativeCurrency / targetPrice;
@@ -720,11 +706,11 @@
                     }
                     setHoldings(updatedHoldings);
                 } else {
-                    nextCash = (Number(claimedDividendsCash) || 0) + netAmountUSD;
+                    nextCash = nextCash + netAmountUSD;
                     setClaimedDividendsCash(nextCash);
                 }
 
-                const nextUnclaimed = unclaimedDividends.map(d => d.id === div.id ? { ...d, processed: true } : d);
+                const nextUnclaimed = (unclaimedDividends || []).map(d => d.id === div.id ? { ...d, processed: true } : d);
                 setUnclaimedDividends(nextUnclaimed);
                 
                 const newTx = {
@@ -739,9 +725,9 @@
                     date: div.date
                 };
 
-                const nextTx = [newTx, ...transactions];
+                const nextTx = [newTx, ...(transactions || [])];
                 setTransactions(nextTx);
-                saveToCloud(updatedHoldings, nextTx, isDripModeActive ? claimedDividendsCash : nextCash, nextUnclaimed);
+                saveToCloud(updatedHoldings, nextTx, nextCash, nextUnclaimed);
 
                 setIsClaimDivModalOpen(false);
                 setSelectedDivToClaim(null);
@@ -758,11 +744,11 @@
                 const colors = ['#ec4899', '#f43f5e', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6'];
                 const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
-                const existingIndex = holdings.findIndex(h => h.symbol.toUpperCase() === newSymbol.toUpperCase());
-                let nextHoldings = [...holdings];
+                let nextHoldings = [...(holdings || [])];
+                const existingIndex = nextHoldings.findIndex(h => h.symbol.toUpperCase() === newSymbol.toUpperCase());
                 
                 if (existingIndex > -1) {
-                    const existing = holdings[existingIndex];
+                    const existing = nextHoldings[existingIndex];
                     const eShares = Number(existing.shares) || 0;
                     const eAvgPrice = Number(existing.avgBuyPrice) || 0;
                     const updatedShares = eShares + sharesNum;
@@ -781,9 +767,10 @@
                     });
                 }
 
-                const nextTx = [{ id: `tx-${Date.now()}`, type: 'BUY', symbol: newSymbol.toUpperCase(), category: newCategory, amount: sharesNum, price: priceNum, date: new Date().toISOString().split('T')[0], currency: newCurrency, commission: 0 }, ...transactions];
+                const nextTx = [{ id: `tx-${Date.now()}`, type: 'BUY', symbol: newSymbol.toUpperCase(), category: newCategory, amount: sharesNum, price: priceNum, date: new Date().toISOString().split('T')[0], currency: newCurrency, commission: 0 }, ...(transactions || [])];
                 setHoldings(nextHoldings); setTransactions(nextTx);
                 saveToCloud(nextHoldings, nextTx, claimedDividendsCash, unclaimedDividends);
+
                 setNewSymbol(''); setNewName(''); setNewShares(''); setNewPrice('');
                 setIsAddModalOpen(false);
                 showNotification("Asset Registered", `${newSymbol.toUpperCase()} logged inside current portfolio.`);
@@ -803,7 +790,7 @@
                 const amountNum = parseFloat(tradeAmount) || 0;
                 const priceNum = parseFloat(tradePrice) || 0;
                 
-                let nextHoldings = holdings.map(h => {
+                let nextHoldings = (holdings || []).map(h => {
                     if (h.id === selectedAssetForModal.id) {
                         const hShares = Number(h.shares) || 0;
                         const hAvg = Number(h.avgBuyPrice) || 0;
@@ -819,44 +806,27 @@
                 }).filter(h => h.shares > 0);
 
                 const nextTx = [{
-                    id: `tx-${Date.now()}`,
-                    type: tradeType,
-                    symbol: selectedAssetForModal.symbol,
-                    category: selectedAssetForModal.category,
-                    amount: amountNum,
-                    price: priceNum,
-                    date: new Date().toISOString().split('T')[0],
-                    currency: selectedAssetForModal.currency,
-                    commission: 0
-                }, ...transactions];
+                    id: `tx-${Date.now()}`, type: tradeType, symbol: selectedAssetForModal.symbol, category: selectedAssetForModal.category,
+                    amount: amountNum, price: priceNum, date: new Date().toISOString().split('T')[0], currency: selectedAssetForModal.currency, commission: 0
+                }, ...(transactions || [])];
 
-                setHoldings(nextHoldings);
-                setTransactions(nextTx);
+                setHoldings(nextHoldings); setTransactions(nextTx);
                 saveToCloud(nextHoldings, nextTx, claimedDividendsCash, unclaimedDividends);
-
                 setIsBuySellModalOpen(false);
                 showNotification("Trade Sim Committed", `Processed simulation record for ${selectedAssetForModal.symbol}.`);
             };
 
             const deleteHolding = (id) => {
-                const asset = holdings.find(h => h.id === id);
+                const asset = (holdings || []).find(h => h.id === id);
                 if (asset) {
                     showConfirmation("Liquidate Position", `This will permanently delete your logged holdings for ${asset.symbol}. Proceed?`, () => {
-                        const nextHoldings = holdings.filter(h => h.id !== id);
+                        const nextHoldings = (holdings || []).filter(h => h.id !== id);
                         const nextTx = [{
-                            id: `tx-${Date.now()}`,
-                            type: 'LIQUIDATE',
-                            symbol: asset.symbol,
-                            category: asset.category,
-                            amount: Number(asset.shares) || 0,
-                            price: Number(asset.currentPrice) || 0,
-                            date: new Date().toISOString().split('T')[0],
-                            currency: asset.currency,
-                            commission: 0
-                        }, ...transactions];
+                            id: `tx-${Date.now()}`, type: 'LIQUIDATE', symbol: asset.symbol, category: asset.category,
+                            amount: Number(asset.shares) || 0, price: Number(asset.currentPrice) || 0, date: new Date().toISOString().split('T')[0], currency: asset.currency, commission: 0
+                        }, ...(transactions || [])];
 
-                        setHoldings(nextHoldings);
-                        setTransactions(nextTx);
+                        setHoldings(nextHoldings); setTransactions(nextTx);
                         saveToCloud(nextHoldings, nextTx, claimedDividendsCash, unclaimedDividends);
                     });
                 }
@@ -874,36 +844,30 @@
                 });
             };
 
-            // --- FIXED: MANUAL DIVIDEND ENTRY BYPASSES PRICE VALIDATION ---
+            // --- UPGRADE 1: MANUAL DIVIDEND ENTRY FIX ---
             const handleManualTxSubmit = (e) => {
                 e.preventDefault();
                 if (!txFormShares || (txFormType !== 'DIVIDEND' && !txFormPrice)) return;
 
                 const sharesNum = parseFloat(txFormShares) || 0;
+                // If DIVIDEND, bypass the empty price box and default to $1 per logic unit
                 const priceNum = txFormType === 'DIVIDEND' ? 1.00 : parseFloat(txFormPrice) || 0;
                 const commissionNum = parseFloat(txFormCommission) || 0;
 
                 const newTx = {
-                    id: `tx-${Date.now()}`,
-                    type: txFormType,
-                    symbol: txFormSymbol.toUpperCase(),
-                    category: 'Stocks',
-                    amount: sharesNum,
-                    price: priceNum,
-                    commission: commissionNum,
-                    currency: txFormCurrency,
-                    date: txFormDate
+                    id: `tx-${Date.now()}`, type: txFormType, symbol: txFormSymbol.toUpperCase(), category: 'Stocks',
+                    amount: sharesNum, price: priceNum, commission: commissionNum, currency: txFormCurrency, date: txFormDate
                 };
 
-                let nextHoldings = [...holdings];
+                let nextHoldings = [...(holdings || [])];
                 let nextCash = Number(claimedDividendsCash) || 0;
 
                 if (txFormType === 'BUY' || txFormType === 'SELL') {
                     const delta = txFormType === 'BUY' ? sharesNum : -sharesNum;
+                    const targetIndex = nextHoldings.findIndex(h => h.symbol === txFormSymbol);
                     
-                    const targetIndex = holdings.findIndex(h => h.symbol === txFormSymbol);
                     if (targetIndex > -1) {
-                        const h = holdings[targetIndex];
+                        const h = nextHoldings[targetIndex];
                         const hShares = Number(h.shares) || 0;
                         const hAvg = Number(h.avgBuyPrice) || 0;
                         const updatedShares = Math.max(0, hShares + delta);
@@ -920,13 +884,14 @@
                         };
                     }
                 } else if (txFormType === 'DIVIDEND') {
+                    // Dividend Fix logic execution
                     const netAmount = sharesNum - commissionNum; 
                     const netAmountUSD = txFormCurrency === 'HKD' ? netAmount / usdToHkd : netAmount;
 
                     if (isDripEnabled) {
-                        const targetIndex = holdings.findIndex(h => h.symbol === txFormSymbol);
+                        const targetIndex = nextHoldings.findIndex(h => h.symbol === txFormSymbol);
                         if (targetIndex > -1) {
-                            const h = holdings[targetIndex];
+                            const h = nextHoldings[targetIndex];
                             const hShares = Number(h.shares) || 0;
                             const hAvg = Number(h.avgBuyPrice) || 0;
                             const hPrice = Number(h.currentPrice) || 1;
@@ -948,7 +913,7 @@
                     }
                 }
 
-                const updatedTx = [newTx, ...transactions];
+                const updatedTx = [newTx, ...(transactions || [])];
                 setHoldings(nextHoldings);
                 setTransactions(updatedTx);
                 setClaimedDividendsCash(nextCash);
@@ -961,14 +926,8 @@
             };
 
             const openEditTxModal = (tx) => {
-                setSelectedTxForEdit(tx);
-                setEditTxType(tx.type || 'BUY');
-                setEditTxSymbol(tx.symbol || '');
-                setEditTxAmount(tx.amount || '');
-                setEditTxPrice(tx.price || '');
-                setEditTxDate(tx.date || '');
-                setEditTxCurrency(tx.currency || 'USD');
-                setEditTxCommission(tx.commission || '0');
+                setSelectedTxForEdit(tx); setEditTxType(tx.type || 'BUY'); setEditTxSymbol(tx.symbol || ''); setEditTxAmount(tx.amount || '');
+                setEditTxPrice(tx.price || ''); setEditTxDate(tx.date || ''); setEditTxCurrency(tx.currency || 'USD'); setEditTxCommission(tx.commission || '0');
                 setIsEditTxModalOpen(true);
             };
 
@@ -980,23 +939,14 @@
                 const priceNum = parseFloat(editTxPrice) || 0;
                 const commissionNum = parseFloat(editTxCommission) || 0;
 
-                const nextTransactions = transactions.map(t => {
+                const nextTransactions = (transactions || []).map(t => {
                     if (t.id === selectedTxForEdit.id) {
-                        return {
-                            ...t,
-                            type: editTxType,
-                            symbol: editTxSymbol.toUpperCase(),
-                            amount: amountNum,
-                            price: priceNum,
-                            date: editTxDate,
-                            currency: editTxCurrency,
-                            commission: commissionNum
-                        };
+                        return { ...t, type: editTxType, symbol: editTxSymbol.toUpperCase(), amount: amountNum, price: priceNum, date: editTxDate, currency: editTxCurrency, commission: commissionNum };
                     }
                     return t;
                 });
 
-                let nextHoldings = [...holdings];
+                let nextHoldings = [...(holdings || [])];
                 let nextCash = Number(claimedDividendsCash) || 0;
 
                 const oldSymbol = selectedTxForEdit.symbol;
@@ -1008,16 +958,11 @@
                     const newDelta = editTxType === 'BUY' ? amountNum : ((editTxType === 'SELL' || editTxType === 'LIQUIDATE') ? -amountNum : 0);
 
                     nextHoldings = nextHoldings.map(h => {
-                        if (h.symbol === oldSymbol) {
-                            return { ...h, shares: Math.max(0, (Number(h.shares) || 0) - oldDelta) };
-                        }
+                        if (h.symbol === oldSymbol) { return { ...h, shares: Math.max(0, (Number(h.shares) || 0) - oldDelta) }; }
                         return h;
                     });
-
                     nextHoldings = nextHoldings.map(h => {
-                        if (h.symbol === newSymbol) {
-                            return { ...h, shares: (Number(h.shares) || 0) + newDelta };
-                        }
+                        if (h.symbol === newSymbol) { return { ...h, shares: (Number(h.shares) || 0) + newDelta }; }
                         return h;
                     });
                 } else if (selectedTxForEdit.type === 'DIVIDEND') {
@@ -1032,31 +977,26 @@
                     nextCash = Math.max(0, nextCash - oldNetUSD + newNetUSD);
                 }
 
-                setHoldings(nextHoldings);
-                setTransactions(nextTransactions);
-                setClaimedDividendsCash(nextCash);
+                setHoldings(nextHoldings); setTransactions(nextTransactions); setClaimedDividendsCash(nextCash);
                 saveToCloud(nextHoldings, nextTransactions, nextCash, unclaimedDividends);
-                setIsEditTxModalOpen(false);
-                setSelectedTxForEdit(null);
+                setIsEditTxModalOpen(false); setSelectedTxForEdit(null);
                 showNotification("Changes Committed", "Respective assets and transaction ledger adjusted successfully.");
             };
 
             const handleDeleteTx = (id) => {
-                const txToDelete = transactions.find(t => t.id === id);
+                const txToDelete = (transactions || []).find(t => t.id === id);
                 if (!txToDelete) return;
 
                 showConfirmation("Delete Ledger Item", `Are you sure you want to permanently delete transaction record ${txToDelete.symbol} (${txToDelete.type})?`, () => {
-                    const nextTransactions = transactions.filter(t => t.id !== id);
-                    let nextHoldings = [...holdings];
+                    const nextTransactions = (transactions || []).filter(t => t.id !== id);
+                    let nextHoldings = [...(holdings || [])];
                     let nextCash = Number(claimedDividendsCash) || 0;
 
                     if (txToDelete.type === 'BUY' || txToDelete.type === 'SELL') {
                         const delAmt = Number(txToDelete.amount) || 0;
                         const delta = txToDelete.type === 'BUY' ? delAmt : -delAmt;
                         nextHoldings = nextHoldings.map(h => {
-                            if (h.symbol === txToDelete.symbol) {
-                                return { ...h, shares: Math.max(0, (Number(h.shares) || 0) - delta) };
-                            }
+                            if (h.symbol === txToDelete.symbol) { return { ...h, shares: Math.max(0, (Number(h.shares) || 0) - delta) }; }
                             return h;
                         });
                     } else if (txToDelete.type === 'DIVIDEND') {
@@ -1066,9 +1006,7 @@
                         nextCash = Math.max(0, nextCash - netValUSD);
                     }
 
-                    setHoldings(nextHoldings);
-                    setTransactions(nextTransactions);
-                    setClaimedDividendsCash(nextCash);
+                    setHoldings(nextHoldings); setTransactions(nextTransactions); setClaimedDividendsCash(nextCash);
                     saveToCloud(nextHoldings, nextTransactions, nextCash, unclaimedDividends);
                     showNotification("Record Deleted", "Transaction wiped from ledger. Holdings reverted.");
                 });
@@ -1077,7 +1015,7 @@
             const callGemini = async (userMessage) => {
                 setIsAiLoading(true);
 
-                const formattedHoldings = holdings.map(h => {
+                const formattedHoldings = (holdings || []).map(h => {
                     const isHKD = h.currency === 'HKD';
                     const currentPriceUSD = isHKD ? (Number(h.currentPrice) || 0) / usdToHkd : (Number(h.currentPrice) || 0);
                     const currentPct = totals.totalValueUSD > 0 ? (((Number(h.shares) || 0) * currentPriceUSD) / totals.totalValueUSD) * 100 : 0;
@@ -1085,17 +1023,12 @@
                 }).join('\n');
 
                 const fullSystemPrompt = `${SYSTEM_PROMPT}\n\nCURRENT PORTFOLIO MATRIX:\n${formattedHoldings}\nTotal USD Value: $${totals.totalValueUSD.toFixed(2)}\nWeighted Portfolio Beta: ${totals.portfolioBeta.toFixed(3)}\nActive Exchange Rate: 1 USD = ${usdToHkd} HKD`;
-
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=`;
 
                 try {
                     const response = await fetch(url, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: userMessage }] }],
-                            systemInstruction: { parts: [{ text: fullSystemPrompt }] }
-                        })
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: userMessage }] }], systemInstruction: { parts: [{ text: fullSystemPrompt }] } })
                     });
                     const data = await response.json();
                     const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response received. Verify API services.";
@@ -1108,26 +1041,17 @@
             };
 
             const handleSendMessage = (e) => {
-                e.preventDefault();
-                if (!copilotInput.trim()) return;
-                const msg = copilotInput;
-                setMessages(prev => [...prev, { sender: 'user', text: msg }]);
-                setCopilotInput('');
-                callGemini(msg);
+                e.preventDefault(); if (!copilotInput.trim()) return;
+                const msg = copilotInput; setMessages(prev => [...prev, { sender: 'user', text: msg }]); setCopilotInput(''); callGemini(msg);
             };
 
             const triggerPresetCopilotQuery = (queryType) => {
                 let queryText = '';
-                if (queryType === 'risk') {
-                    queryText = "Analyze the overall volatility, Beta score, and expected stress outcomes of my current stock allocation.";
-                } else if (queryType === 'rebalance') {
-                    queryText = "Generate a rebalancing instruction order taking standard board lot rounding rules into account.";
-                } else if (queryType === 'dividends') {
-                    queryText = "Critique my compounding yield. What is the impact of dividend tax drag on my 20-year DRIP projection?";
-                }
-                setMessages(prev => [...prev, { sender: 'user', text: queryText }]);
-                setActiveTab('copilot');
-                callGemini(queryText);
+                if (queryType === 'risk') queryText = "Analyze the overall volatility, Beta score, and expected stress outcomes of my current stock allocation.";
+                else if (queryType === 'rebalance') queryText = "Generate a rebalancing instruction order taking standard board lot rounding rules into account.";
+                else if (queryType === 'dividends') queryText = "Critique my compounding yield. What is the impact of dividend tax drag on my 20-year DRIP projection?";
+                
+                setMessages(prev => [...prev, { sender: 'user', text: queryText }]); setActiveTab('copilot'); callGemini(queryText);
             };
 
             const comparisonData = useMemo(() => {
@@ -1212,6 +1136,18 @@
                 return `${path} L ${coords[coords.length-1].x} ${bottomY} L ${coords[0].x} ${bottomY} Z`;
             };
 
+            // Initialize App Pre-Flight Check (Render Gate)
+            if (!isSdkReady) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 text-slate-100">
+                        <div className="text-center animate-pulse space-y-4">
+                            <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                            <div className="font-bold tracking-widest uppercase text-xs opacity-60">Initializing Engine...</div>
+                        </div>
+                    </div>
+                );
+            }
+
             // --- RESTORED SECURE AUTH LANDING PAGE WITH OFF-LINE BYPASS ---
             if (cloudStatus === 'unauthenticated' || !user) {
                 return (
@@ -1229,14 +1165,7 @@
                                         To enable secure multi-device syncing, please paste your Firebase credentials into the <code>firebaseConfig</code> block inside your HTML file (around line 90).
                                     </p>
                                     <button 
-                                        onClick={() => {
-                                            setUser({ uid: 'sandbox-user', displayName: 'Sandbox User' });
-                                            setCloudStatus('local-sandbox');
-                                            setHoldings(SANDBOX_HOLDINGS);
-                                            setTransactions([]);
-                                            setClaimedDividendsCash(0);
-                                            setUnclaimedDividends(SANDBOX_DIVIDENDS);
-                                        }}
+                                        onClick={triggerSandboxMode}
                                         className="w-full mt-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold py-2 px-3 rounded-lg text-xs transition-all uppercase tracking-wider"
                                     >
                                         Continue to Sandbox Mode (Offline)
@@ -1248,14 +1177,7 @@
                                         Connect to your secure personal account. Your custom assets and targets are encrypted and tied securely to your Google identity.
                                     </p>
                                     <button 
-                                        onClick={() => {
-                                            setUser({ uid: 'sandbox-user', displayName: 'Sandbox User' });
-                                            setCloudStatus('local-sandbox');
-                                            setHoldings(SANDBOX_HOLDINGS);
-                                            setTransactions([]);
-                                            setClaimedDividendsCash(0);
-                                            setUnclaimedDividends(SANDBOX_DIVIDENDS);
-                                        }}
+                                        onClick={triggerSandboxMode}
                                         className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-extrabold py-3 px-4 rounded-xl text-xs transition-all border border-slate-700 shadow flex items-center justify-center space-x-2"
                                     >
                                         <span>🏖️ Enter Sandbox Test Mode</span>
@@ -1280,11 +1202,11 @@
                 <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
                     
                     {/* Unclaimed Dividend Notification Banner */}
-                    {unclaimedDividends.some(d => !d.processed && !d.simulatedUpcoming) && (
+                    {(unclaimedDividends || []).some(d => !d.processed && !d.simulatedUpcoming) && (
                         <div className="bg-gradient-to-r from-emerald-600 to-indigo-600 text-white font-semibold py-2.5 px-4 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-lg animate-pulse">
                             <span>📢 Dividend Announcement! Click Claim to deposit in your Dividend Cash account.</span>
                             <div className="flex items-center space-x-2">
-                                {unclaimedDividends.filter(d => !d.processed && !d.simulatedUpcoming).map(div => (
+                                {(unclaimedDividends || []).filter(d => !d.processed && !d.simulatedUpcoming).map(div => (
                                     <button 
                                         key={div.id}
                                         onClick={() => triggerPromptClaimDividend(div)}
@@ -1331,12 +1253,7 @@
                                             setCloudStatus('unauthenticated');
                                             setUser(null);
                                         } else {
-                                            setUser({ uid: 'sandbox-user', displayName: 'Sandbox User' });
-                                            setCloudStatus('local-sandbox');
-                                            setHoldings(SANDBOX_HOLDINGS);
-                                            setTransactions([]);
-                                            setClaimedDividendsCash(0);
-                                            setUnclaimedDividends(SANDBOX_DIVIDENDS);
+                                            triggerSandboxMode();
                                         }
                                     }}
                                     className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded border flex items-center space-x-1.5 transition-all cursor-pointer ${
@@ -1518,8 +1435,12 @@
                                         </svg>
 
                                         <div className={`absolute top-2 left-6 px-3 py-1.5 rounded-xl border flex flex-col ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-md`}>
-                                            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">{hoveredPoint !== null ? comparisonData.portfolioPoints[hoveredPoint].label : 'My Portfolio Value'}</span>
-                                            <span className="text-sm font-extrabold text-indigo-400">USD ${(hoveredPoint !== null ? (Number(comparisonData.portfolioPoints[hoveredPoint].value) || 0) : (Number(totals.totalValueUSD) || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">
+                                                {hoveredPoint !== null ? comparisonData.portfolioPoints[hoveredPoint].label : 'My Portfolio Value'}
+                                            </span>
+                                            <span className="text-sm font-extrabold text-indigo-400">
+                                                USD ${(hoveredPoint !== null ? comparisonData.portfolioPoints[hoveredPoint].value : totals.totalValueUSD).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -1527,7 +1448,7 @@
                                 <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
                                     <h3 className="font-bold text-lg mb-4">Diversification Breakdown</h3>
                                     <div className="space-y-3">
-                                        {holdings.map(h => {
+                                        {(holdings || []).map(h => {
                                             const isHKD = h.currency === 'HKD';
                                             const currentPriceUSD = isHKD ? (Number(h.currentPrice) || 0) / usdToHkd : (Number(h.currentPrice) || 0);
                                             const weight = totals.totalValueUSD > 0 ? (((Number(h.shares) || 0) * currentPriceUSD) / totals.totalValueUSD) * 100 : 0;
@@ -1563,7 +1484,7 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {holdings.map(h => {
+                                                {(holdings || []).map(h => {
                                                     const isHKD = h.currency === 'HKD';
                                                     const currentPriceUSD = isHKD ? (Number(h.currentPrice) || 0) / usdToHkd : (Number(h.currentPrice) || 0);
                                                     
@@ -1738,7 +1659,7 @@
                                 <div className={`lg:col-span-2 p-6 rounded-2xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
                                     <h3 className="font-bold text-lg mb-4">Target Matrix Settings</h3>
                                     <div className="space-y-4">
-                                        {holdings.map(h => (
+                                        {(holdings || []).map(h => (
                                             <div key={h.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-800/20 border border-slate-800/40">
                                                 <div className="flex flex-col">
                                                     <span className="font-bold">{h.symbol}</span>
@@ -1779,7 +1700,7 @@
                                         <p className="text-[11px] opacity-60">Calculates precise transactions rounded automatically to standard HK Board Lots (100 or 500 lots) and whole US shares.</p>
                                     </div>
                                     <div className="space-y-3 pt-2">
-                                        {holdings.map(h => {
+                                        {(holdings || []).map(h => {
                                             const isHKD = h.currency === 'HKD';
                                             const currentPriceUSD = isHKD ? (Number(h.currentPrice) || 0) / usdToHkd : (Number(h.currentPrice) || 0);
                                             const assetValUSD = (Number(h.shares) || 0) * currentPriceUSD;
@@ -1952,7 +1873,9 @@
                                                 </div>
                                             )})}
                                         </div>
-                                        {unclaimedDividends.length > ITEMS_PER_PAGE && (
+                                        
+                                        {/* UPGRADE 3: PAGINATION CONTROLS */}
+                                        {(unclaimedDividends || []).length > ITEMS_PER_PAGE && (
                                             <div className="flex justify-between items-center pt-4 mt-4 border-t border-slate-800">
                                                 <button disabled={incomeLogPage === 1} onClick={() => setIncomeLogPage(p => p - 1)} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg disabled:opacity-50 text-xs font-bold transition-all">← Previous</button>
                                                 <span className="text-xs text-slate-500 font-semibold">Page {incomeLogPage} of {totalIncomePages}</span>
@@ -1981,7 +1904,7 @@
                                                 onChange={e => setTxFormSymbol(e.target.value)} 
                                                 className="w-full px-3 py-2.5 rounded-xl text-xs border border-slate-750 bg-slate-900 text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 animate-slide-in"
                                             >
-                                                {holdings.map(h => (
+                                                {(holdings || []).map(h => (
                                                     <option key={h.id} value={h.symbol} className="bg-slate-900 text-slate-100">{h.symbol}</option>
                                                 ))}
                                             </select>
@@ -2088,7 +2011,7 @@
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-800/30">
-                                                {transactions.length === 0 ? (
+                                                {(transactions || []).length === 0 ? (
                                                     <tr>
                                                         <td colSpan="9" className="py-8 text-center text-slate-500 italic">No transactions logged yet. Use the form on the left to start building your portfolio.</td>
                                                     </tr>
@@ -2129,7 +2052,9 @@
                                             </tbody>
                                         </table>
                                     </div>
-                                    {transactions.length > ITEMS_PER_PAGE && (
+                                    
+                                    {/* UPGRADE 3: PAGINATION CONTROLS */}
+                                    {(transactions || []).length > ITEMS_PER_PAGE && (
                                         <div className="flex justify-between items-center pt-4 mt-2">
                                             <button disabled={txLogPage === 1} onClick={() => setTxLogPage(p => p - 1)} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg disabled:opacity-50 text-xs font-bold transition-all">← Previous</button>
                                             <span className="text-xs text-slate-500 font-semibold">Page {txLogPage} of {totalTxPages}</span>
@@ -2243,7 +2168,7 @@
                                       className="w-full px-3 py-2 rounded-xl text-sm border border-slate-750 bg-slate-900 text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                                       required
                                     >
-                                      {holdings.map(h => (
+                                      {(holdings || []).map(h => (
                                         <option key={h.id} value={h.symbol} className="bg-slate-900 text-slate-100">{h.symbol}</option>
                                       ))}
                                     </select>
